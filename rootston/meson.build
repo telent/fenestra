@@ -4,6 +4,7 @@ sources = [
 	'desktop.c',
 	'ini.c',
 	'input.c',
+	'interpreter.c',	
 	'keyboard.c',
 	'layer_shell.c',
 	'main.c',
@@ -20,9 +21,11 @@ if conf_data.get('WLR_HAS_XWAYLAND', 0) == 1
 	sources += 'xwayland.c'
 endif
 
+lua            = dependency('lua')
+
 executable(
 	'rootston',
 	sources,
-	dependencies: [wlroots, wlr_protos, pixman],
+	dependencies: [wlroots, wlr_protos, pixman, lua],
 	build_by_default: get_option('rootston'),
 )

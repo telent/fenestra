@@ -12,10 +12,16 @@
 #include "rootston/config.h"
 #include "rootston/server.h"
 
+extern void lua_init(void);
+extern int repl_open_server_socket(char * pathname);
+extern int repl_socket_accept_client(int i, unsigned int u,void * data);
+
 struct roots_server server = { 0 };
 
 int main(int argc, char **argv) {
 	wlr_log_init(WLR_DEBUG, NULL);
+	lua_init();
+
 	server.config = roots_config_create_from_args(argc, argv);
 	server.wl_display = wl_display_create();
 	server.wl_event_loop = wl_display_get_event_loop(server.wl_display);
@@ -70,7 +76,18 @@ int main(int argc, char **argv) {
 			execl("/bin/sh", "/bin/sh", "-c", cmd, (void *)NULL);
 		}
 	}
-
+	int repl_fd = repl_open_server_socket("/tmp/fenestra.sock");
+	if(repl_fd > 0) {
+		struct wl_event_loop *event_loop = wl_display_get_event_loop(server.wl_display);
+		printf("adding lua server soket %d %p\n",
+		       repl_fd, event_loop);
+		struct wl_event_source *s;
+		s = wl_event_loop_add_fd(event_loop, repl_fd,
+					 WL_EVENT_READABLE,
+					 repl_socket_accept_client,
+					 (void *) event_loop);
+		printf("added %p\n",s);
+	}
 	wl_display_run(server.wl_display);
 #if WLR_HAS_XWAYLAND
 	wlr_xwayland_destroy(server.desktop->xwayland);

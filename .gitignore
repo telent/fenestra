@@ -7,3 +7,5 @@ build/
 wayland-*-protocol.*
 wlr-example.ini
 rootston.ini
+TAGS
+*~

@@ -166,3 +166,26 @@ lua_init(void)
     return 0;
 }
 
+struct lua_wl_listener {
+    struct wl_listener listener;
+    void * lua_fn;
+};
+
+static void forward_signal_to_lua(struct wl_listener *l, void *d)
+{
+    void * lua_fn = ((struct lua_wl_listener *)l)->lua_fn;
+    printf("(not) calling lua callback %p with %p\n", lua_fn, d);
+}
+
+void * lookup(char * name)
+{
+    return (void *)0x12345678;
+}
+
+struct wl_listener *lua_make_listener(char *lua_fn_name)
+{
+    struct lua_wl_listener *l = calloc(sizeof (struct lua_wl_listener ),1);
+    l->listener.notify = forward_signal_to_lua;
+    l->lua_fn = lookup(lua_fn_name);
+    return (struct wl_listener *)l;
+}

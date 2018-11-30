@@ -15,6 +15,7 @@
 extern void lua_init(void);
 extern int repl_open_server_socket(char * pathname);
 extern int repl_socket_accept_client(int i, unsigned int u,void * data);
+extern struct wl_listener *lua_make_listener(char * name);
 
 struct roots_server server = { 0 };
 
@@ -41,6 +42,9 @@ int main(int argc, char **argv) {
 	server.desktop = desktop_create(&server, server.config);
 	server.input = input_create(&server, server.config);
 
+	wl_signal_add(&(server.backend->events.new_input),
+		      lua_make_listener("listen_for_inputs"));
+	
 	const char *socket = wl_display_add_socket_auto(server.wl_display);
 	if (!socket) {
 		wlr_log_errno(WLR_ERROR, "Unable to open wayland socket");

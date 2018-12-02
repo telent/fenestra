@@ -1,4 +1,4 @@
-{ stdenv, fetchFromGitHub, fetchpatch, meson, ninja, pkgconfig
+{ stdenv, fetchFromGitHub, fetchurl, fetchpatch, meson, ninja, pkgconfig
 , wayland, libGL, wayland-protocols, libinput, libxkbcommon, pixman
 , xcbutilwm, libX11, libcap, xcbutilimage, xcbutilerrors, mesa_noglu
 , libpng, ffmpeg_4
@@ -23,6 +23,11 @@ let
       	      (stdenv.lib.hasSuffix "a87496addd9160300837aa50193f4798c6f1d251.patch" str)))
       oldAttrs.patches;
   });
+  inspect_lua = fetchurl {
+    name = "inspect.lua";
+    url = "https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua";
+    sha256 = "1xk42w7vwnc6k5iiqbzlnnapas4fk879mkj36nws2p2w03nj5508";
+  };
 in stdenv.mkDerivation rec {
   name = "${pname}-${version}";
 
@@ -51,6 +56,8 @@ in stdenv.mkDerivation rec {
     libpng ffmpeg_4
     lua
   ];
+
+  LUA_INSPECT = [ inspect_lua ];
 
   mesonFlags = [
     "-Dlibcap=enabled" "-Dlogind=enabled" "-Dxwayland=enabled" "-Dx11-backend=enabled"

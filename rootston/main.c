@@ -12,16 +12,16 @@
 #include "rootston/config.h"
 #include "rootston/server.h"
 
-extern void lua_init(void);
-extern int repl_open_server_socket(char * pathname);
-extern int repl_socket_accept_client(int i, unsigned int u,void * data);
-extern struct wl_listener *lua_make_listener(char * name);
+extern void intrp_init(void);
+extern int intrp_open_server_socket(char * pathname);
+extern int intrp_socket_accept_client(int i, unsigned int u,void * data);
+extern struct wl_listener *intrp_make_listener(char * name);
 
 struct roots_server server = { 0 };
 
 int main(int argc, char **argv) {
 	wlr_log_init(WLR_DEBUG, NULL);
-	lua_init();
+	intrp_init();
 
 	server.config = roots_config_create_from_args(argc, argv);
 	server.wl_display = wl_display_create();
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 	server.input = input_create(&server, server.config);
 
 	wl_signal_add(&(server.backend->events.new_input),
-		      lua_make_listener("listen_for_inputs"));
+		      intrp_make_listener("listen_for_inputs"));
 	
 	const char *socket = wl_display_add_socket_auto(server.wl_display);
 	if (!socket) {
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 			execl("/bin/sh", "/bin/sh", "-c", cmd, (void *)NULL);
 		}
 	}
-	int repl_fd = repl_open_server_socket("/tmp/fenestra.sock");
+	int repl_fd = intrp_open_server_socket("/tmp/fenestra.sock");
 	if(repl_fd > 0) {
 		struct wl_event_loop *event_loop = wl_display_get_event_loop(server.wl_display);
 		printf("adding lua server soket %d %p\n",
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 		struct wl_event_source *s;
 		s = wl_event_loop_add_fd(event_loop, repl_fd,
 					 WL_EVENT_READABLE,
-					 repl_socket_accept_client,
+					 intrp_socket_accept_client,
 					 (void *) event_loop);
 		printf("added %p\n",s);
 	}

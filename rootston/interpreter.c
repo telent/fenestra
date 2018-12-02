@@ -16,7 +16,7 @@
 
 static lua_State *L;
 
-int repl_open_server_socket(char * pathname)
+int intrp_open_server_socket(char * pathname)
 {
     struct sockaddr_un address;
     int socket_fd;
@@ -48,7 +48,7 @@ int repl_open_server_socket(char * pathname)
 
     return socket_fd;
 }
-int repl_socket_read_expr(int fd, unsigned int mask, void *data) {
+int intrp_socket_read_expr(int fd, unsigned int mask, void *data) {
     struct wl_event_source *event_source = *((struct wl_event_source **) data);
     char buf[1024];
     int bytes;
@@ -70,7 +70,7 @@ int repl_socket_read_expr(int fd, unsigned int mask, void *data) {
 }
 
     
-int repl_socket_accept_client(int socket_fd, unsigned int mask, void *data)
+int intrp_socket_accept_client(int socket_fd, unsigned int mask, void *data)
 {
     struct wl_event_loop *event_loop = (struct wl_event_loop *)data;
 
@@ -84,7 +84,7 @@ int repl_socket_accept_client(int socket_fd, unsigned int mask, void *data)
 	struct wl_event_source *s;
 	s = wl_event_loop_add_fd(event_loop, connection_fd,
 				 WL_EVENT_READABLE,
-				 repl_socket_read_expr,
+				 intrp_socket_read_expr,
 				 data);
 	*data = s;
 	printf("added client %p\n",s);
@@ -93,7 +93,7 @@ int repl_socket_accept_client(int socket_fd, unsigned int mask, void *data)
 }
 
 int
-lua_init(void)
+intrp_init(void)
 {
     int status, result, i;
     double sum;
@@ -177,15 +177,12 @@ static void forward_signal_to_lua(struct wl_listener *l, void *d)
     printf("(not) calling lua callback %p with %p\n", lua_fn, d);
 }
 
-void * lookup(char * name)
-{
-    return (void *)0x12345678;
-}
 
-struct wl_listener *lua_make_listener(char *lua_fn_name)
+struct wl_listener *intrp_make_listener(char *lua_fn_name)
 {
     struct lua_wl_listener *l = calloc(sizeof (struct lua_wl_listener ),1);
     l->listener.notify = forward_signal_to_lua;
-    l->lua_fn = lookup(lua_fn_name);
+    l->lua_fn = 0; // lookup(lua_fn_name);
     return (struct wl_listener *)l;
 }
+

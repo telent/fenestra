@@ -670,6 +670,8 @@ static void seat_add_keyboard(struct roots_seat *seat,
 	keyboard->keyboard_key.notify = handle_keyboard_key;
 	wl_signal_add(&keyboard->device->keyboard->events.key,
 		&keyboard->keyboard_key);
+	//	wl_signal_add(&(server.backend->events.new_input),
+	//                     lua_make_listener("listen_for_inputs"));
 	keyboard->keyboard_modifiers.notify = handle_keyboard_modifiers;
 	wl_signal_add(&keyboard->device->keyboard->events.modifiers,
 		&keyboard->keyboard_modifiers);

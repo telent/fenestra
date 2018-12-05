@@ -2,7 +2,7 @@
 , wayland, libGL, wayland-protocols, libinput, libxkbcommon, pixman
 , xcbutilwm, libX11, libcap, xcbutilimage, xcbutilerrors, mesa_noglu
 , libpng, ffmpeg_4
-, lua
+, luajit
 , python3Packages # TODO: Temporary
 }:
 
@@ -37,7 +37,7 @@ in stdenv.mkDerivation rec {
   #   rev = version;
   #   sha256 = "0xfipgg2qh2xcf3a1pzx8pyh1aqpb9rijdyi0as4s6fhgy4w269c";
   # };
-  src = ./.;
+  src = ./fenestra;
 
   # patches = [ (fetchpatch { # TODO: Only required for version 0.1
   #   url = https://github.com/swaywm/wlroots/commit/be6210cf8216c08a91e085dac0ec11d0e34fb217.patch;
@@ -54,10 +54,14 @@ in stdenv.mkDerivation rec {
     wayland libGL wayland-protocols libinput libxkbcommon pixman
     xcbutilwm libX11 libcap xcbutilimage xcbutilerrors mesa_noglu
     libpng ffmpeg_4
-    lua
+    luajit
   ];
 
   LUA_INSPECT = [ inspect_lua ];
+
+  # this only works if you are in the fenestra subdirectory.
+  # really need to tidy this up some time when it's not 1am
+  LUA_CPATH = "${wayland}/lib/lib?.so;../build/lib?.so;;";
 
   mesonFlags = [
     "-Dlibcap=enabled" "-Dlogind=enabled" "-Dxwayland=enabled" "-Dx11-backend=enabled"

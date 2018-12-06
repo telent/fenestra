@@ -3,6 +3,7 @@
 , xcbutilwm, libX11, libcap, xcbutilimage, xcbutilerrors, mesa_noglu
 , libpng, ffmpeg_4
 , luajit
+, rlwrap
 , python3Packages # TODO: Temporary
 }:
 
@@ -48,7 +49,7 @@ in stdenv.mkDerivation rec {
   # programs (in examples) AND rootston
   outputs = [ "out" "bin" "examples" ];
 
-  nativeBuildInputs = [ meson480 ninja pkgconfig ];
+  nativeBuildInputs = [ meson480 ninja pkgconfig rlwrap ];
 
   buildInputs = [
     wayland libGL wayland-protocols libinput libxkbcommon pixman

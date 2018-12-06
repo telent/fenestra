@@ -152,7 +152,7 @@ int main()
     luaL_openlibs(L); /* Load Lua libraries */
 
     /* Load the file containing the script we are going to run */
-    status = luaL_loadfile(L, "fen.lua");
+    status = luaL_loadfile(L, "init.lua");
     if (status) {
         /* If something went wrong, error message is at the top of */
         /* the stack */

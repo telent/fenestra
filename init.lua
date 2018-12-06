@@ -5,9 +5,9 @@ inspect = dofile(string.gsub(os.getenv("LUA_INSPECT"), '/.lua$/', '')).inspect
 
 local ffi = require("ffi")
 local io = require("io")
-ffi.cdef(io.open("./defs.c","r"):read("a*"))
+ffi.cdef(io.open("fenestra/defs.c","r"):read("a*"))
 
-local wlroots = ffi.load('../build/libwlroots.so')
+local wlroots = ffi.load('build/libwlroots.so')
 local wayland = ffi.load(package.searchpath('wayland-server',package.cpath))
 
 local display = wayland.wl_display_create()
@@ -16,14 +16,10 @@ local backend = wlroots.wlr_backend_autocreate(display, nil)
 
 local outputs = {}
 
-function wl_signal_add(signal, listener)
-   wayland.wl_list_insert(signal.listener_list.prev, listener.link)
-end
-
 function listen(signal, fn)
    local listener = ffi.new("struct wl_listener")
    listener.notify = fn
-   wl_signal_add(signal, listener)
+   wayland.wl_list_insert(signal.listener_list.prev, listener.link)
    return listener
 end
 

@@ -38,7 +38,7 @@ function new_output(output)
       -- required for drm and other fullscreen backends
       print("XXX should set mode")
    end
-   
+   wlroots.wlr_output_create_global(output)
    return {
       last_frame = os.clock(),
       destroy_listener = listen(
@@ -62,6 +62,18 @@ new_output_listener = listen(
       outputs[#outputs + 1] = o
       print(inspect(outputs))
 end)
+
+local socket = ffi.string(wayland.wl_display_add_socket_auto(display))
+
+print("Running compositor on wayland display ", socket);
+ffi.C.putenv("WAYLAND_DISPLAY=".. socket)
+
+wayland.wl_display_init_shm(display);
+wlroots.wlr_gamma_control_manager_create(display);
+-- wlroots.wlr_screenshooter_create(display);
+-- wlroots.wlr_primary_selection_device_manager_create(display);
+wlroots.wlr_idle_create(display);
+
 
 wlroots.wlr_backend_start(backend)
 wayland.wl_display_run(display);

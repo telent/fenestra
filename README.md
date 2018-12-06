@@ -7,7 +7,8 @@
 * A Lua program that uses Luajit FFI to create a wayland server
 that colours in the entire screen solid red.
 
-https://drewdevault.com/2018/02/17/Writing-a-Wayland-compositor-1.html#fnref:2
+  * https://drewdevault.com/2018/02/17/Writing-a-Wayland-compositor-1.html
+  * https://drewdevault.com/2018/02/22/Writing-a-wayland-compositor-part-2.html
 
 * a Lua REPL attached to a Unix socket
 

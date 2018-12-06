@@ -1,6 +1,7 @@
 struct wl_display { void *p; };
 struct wl_event_loop * wl_display_get_event_loop(struct wl_display *);
 struct wl_display *wl_display_create(void);
+char * wl_display_add_socket_auto(struct wl_display *);
 struct wlr_renderer { void *p; };
 typedef struct wlr_renderer *(*wlr_renderer_create_func_t)();
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
@@ -158,3 +159,10 @@ struct wlr_output {
 
 };
 
+int putenv(const char *);
+
+struct wlr_gamma_control_manager *wlr_gamma_control_manager_create(struct wl_display *display) ;
+struct wlr_idle *wlr_idle_create(struct wl_display *display) ;
+int wl_display_init_shm(struct wl_display *display) ;
+
+void wlr_output_create_global(struct wlr_output *output) ;

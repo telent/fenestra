@@ -5,10 +5,7 @@ inspect = dofile(string.gsub(os.getenv("LUA_INSPECT"), '/.lua$/', '')).inspect
 
 local ffi = require("ffi")
 local io = require("io")
-ffi.cdef(io.open("fenestra/defs.c","r"):read("a*"))
-CLOCK_REALTIME = 0
-CLOCK_MONOTONIC = 1
-
+ffi.cdef(io.open("fenestra/defs.h.out","r"):read("a*"))
 
 
 local wlroots = ffi.load('build/libwlroots.so')
@@ -49,7 +46,7 @@ function render_surface(renderer, surface, output)
 					     matrix,
 					     1.0);
       local now = ffi.new("struct timespec")
-      ffi.C.clock_gettime(CLOCK_MONOTONIC, now)
+      ffi.C.clock_gettime(ffi.C.clock_monotonic, now)
       wlroots.wlr_surface_send_frame_done(surface, now);
    end
 end
@@ -119,11 +116,6 @@ wlroots.wlr_gamma_control_manager_create(display);
 -- wlroots.wlr_screenshooter_create(display);
 -- wlroots.wlr_primary_selection_device_manager_create(display);
 wlroots.wlr_idle_create(display);
-
-
-local now = ffi.new("struct timespec")
-ffi.C.clock_gettime(CLOCK_MONOTONIC, now)
-print(now.tv_sec, now.tv_nsec)
 
 wlroots.wlr_xdg_shell_v6_create(display);
 

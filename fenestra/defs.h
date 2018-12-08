@@ -1,7 +1,10 @@
-typedef long int time_t;
-struct timespec {
-  time_t   tv_sec;        /* seconds */
-  long     tv_nsec;       /* nanoseconds */
+#include <time.h>
+
+enum clocks {
+	     clock_realtime = CLOCK_REALTIME,
+	     clock_monotonic = CLOCK_MONOTONIC,
+	     clock_process_cputime = CLOCK_PROCESS_CPUTIME_ID,
+	     clock_thread_cputime = CLOCK_THREAD_CPUTIME_ID
 };
 
 struct wl_display { void *p; };

@@ -1,3 +1,9 @@
+typedef long int time_t;
+struct timespec {
+  time_t   tv_sec;        /* seconds */
+  long     tv_nsec;       /* nanoseconds */
+};
+
 struct wl_display { void *p; };
 struct wl_event_loop * wl_display_get_event_loop(struct wl_display *);
 struct wl_display *wl_display_create(void);
@@ -23,6 +29,11 @@ struct wl_list {
 
 void wl_list_insert(struct wl_list *list, struct wl_list *elm );
 bool wl_list_empty (const struct wl_list *list);
+
+/* 
+#include <stddef.h>
+enum list_offsets { seventeen = offsetof(struct wl_list, next); };
+*/
 
 struct wl_signal {
          struct wl_list listener_list;
@@ -166,3 +177,161 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) ;
 int wl_display_init_shm(struct wl_display *display) ;
 
 void wlr_output_create_global(struct wlr_output *output) ;
+
+struct wlr_subcompositor {
+	struct wl_global *global;
+	struct wl_list resources;
+	struct wl_list subsurface_resources;
+};
+
+struct wlr_compositor {
+	struct wl_global *global;
+	struct wl_list resources;
+	struct wlr_renderer *renderer;
+	struct wl_list surface_resources;
+	struct wl_list region_resources;
+
+	struct wlr_subcompositor subcompositor;
+
+	struct wl_listener display_destroy;
+
+	struct {
+		struct wl_signal new_surface;
+		struct wl_signal destroy;
+	} events;
+};
+
+struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
+					     struct wlr_renderer *renderer);
+struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend);
+struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display);
+
+struct wl_resource* wl_resource_from_link(struct wl_list *);
+struct wlr_surface *wlr_surface_from_resource(struct wl_resource *);
+
+// << _DEBUGGING_USE_ONLY we only added these to help gdb
+void sync(void *);
+typedef void(* wl_resource_destroy_func_t) (struct wl_resource *resource);
+struct wl_object {
+  const struct wl_interface *interface;
+  const void *implementation;
+  uint32_t id;
+};
+struct wl_resource {
+  struct wl_object object;
+  wl_resource_destroy_func_t destroy;
+  struct wl_list link;
+  struct wl_signal destroy_signal;
+  struct wl_client *client;
+  void *data;
+};
+
+// _DEBUGGING_USE_ONLY
+
+struct wlr_surface_state {
+	uint32_t committed; // enum wlr_surface_state_field
+
+	struct wl_resource *buffer_resource;
+	int32_t dx, dy; // relative to previous position
+	pixman_region32_t surface_damage, buffer_damage; // clipped to bounds
+	pixman_region32_t opaque, input;
+	enum wl_output_transform transform;
+	int32_t scale;
+	struct wl_list frame_callback_list; // wl_resource
+
+	int width, height; // in surface-local coordinates
+	int buffer_width, buffer_height;
+
+	struct wl_listener buffer_destroy;
+};
+
+
+struct wlr_surface {
+	struct wl_resource *resource;
+	struct wlr_renderer *renderer;
+	/**
+	 * The surface's buffer, if any. A surface has an attached buffer when it
+	 * commits with a non-null buffer in its pending state. A surface will not
+	 * have a buffer if it has never committed one, has committed a null buffer,
+	 * or something went wrong with uploading the buffer.
+	 */
+	struct wlr_buffer *buffer;
+	/**
+	 * The buffer position, in surface-local units.
+	 */
+	int sx, sy;
+	/**
+	 * The last commit's buffer damage, in buffer-local coordinates. This
+	 * contains both the damage accumulated by the client via
+	 * `wlr_surface_state.surface_damage` and `wlr_surface_state.buffer_damage`.
+	 * If the buffer has been resized, the whole buffer is damaged.
+	 *
+	 * This region needs to be scaled and transformed into output coordinates,
+	 * just like the buffer's texture. In addition, if the buffer has shrunk the
+	 * old size needs to be damaged and if the buffer has moved the old and new
+	 * positions need to be damaged.
+	 */
+	pixman_region32_t buffer_damage;
+	/**
+	 * The current opaque region, in surface-local coordinates. It is clipped to
+	 * the surface bounds. If the surface's buffer is using a fully opaque
+	 * format, this is set to the whole surface.
+	 */
+	pixman_region32_t opaque_region;
+	/**
+	 * The current input region, in surface-local coordinates. It is clipped to
+	 * the surface bounds.
+	 */
+	pixman_region32_t input_region;
+	/**
+	 * `current` contains the current, committed surface state. `pending`
+	 * accumulates state changes from the client between commits and shouldn't
+	 * be accessed by the compositor directly. `previous` contains the state of
+	 * the previous commit.
+	 */
+	struct wlr_surface_state current, pending, previous;
+
+	const struct wlr_surface_role *role; // the lifetime-bound role or NULL
+	void *role_data; // role-specific data
+
+	struct {
+		struct wl_signal commit;
+		struct wl_signal new_subsurface;
+		struct wl_signal destroy;
+	} events;
+
+	struct wl_list subsurfaces; // wlr_subsurface::parent_link
+
+	// wlr_subsurface::parent_pending_link
+	struct wl_list subsurface_pending_list;
+
+	struct wl_listener renderer_destroy;
+
+	void *data;
+};
+
+struct wlr_subsurface_state {
+	int32_t x, y;
+};
+bool wlr_surface_has_buffer(struct wlr_surface *surface);
+
+struct wlr_box {
+	int x, y;
+	int width, height;
+};
+
+void wlr_matrix_project_box(float mat[9], const struct wlr_box *box,
+			    //enum wl_output_transform transform,
+			    int transform,
+			    float rotation,
+			    const float projection[9]);
+
+bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
+			    struct wlr_texture *texture,
+			    const float *matrix, float alpha);
+
+void wlr_surface_send_frame_done(struct wlr_surface *surface,
+				 const struct timespec *when);
+struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface);
+
+int clock_gettime(int clk_id, struct timespec *tp);

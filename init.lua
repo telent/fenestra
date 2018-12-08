@@ -6,6 +6,10 @@ inspect = dofile(string.gsub(os.getenv("LUA_INSPECT"), '/.lua$/', '')).inspect
 local ffi = require("ffi")
 local io = require("io")
 ffi.cdef(io.open("fenestra/defs.c","r"):read("a*"))
+CLOCK_REALTIME = 0
+CLOCK_MONOTONIC = 1
+
+
 
 local wlroots = ffi.load('build/libwlroots.so')
 local wayland = ffi.load(package.searchpath('wayland-server',package.cpath))
@@ -13,6 +17,10 @@ local wayland = ffi.load(package.searchpath('wayland-server',package.cpath))
 local display = wayland.wl_display_create()
 local event_loop = wayland.wl_display_get_event_loop(display)
 local backend = wlroots.wlr_backend_autocreate(display, nil)
+
+
+local compositor = wlroots.wlr_compositor_create(display,
+						 wlroots.wlr_backend_get_renderer(backend));
 
 local outputs = {}
 
@@ -23,13 +31,51 @@ function listen(signal, fn)
    return listener
 end
 
-function render_frame(renderer, output)
+function render_surface(renderer, surface, output)
+   if wlroots.wlr_surface_has_buffer(surface) then
+      box=ffi.new("struct wlr_box", {
+		     x = 20, y = 20,
+		     width = surface.current.width,
+		     height = surface.current.height
+      })
+      matrix = ffi.new("float[16]");
+      wlroots.wlr_matrix_project_box(matrix, box,
+				     surface.current.transform,
+				     0,
+				     output.transform_matrix)
+      local texture = wlroots.wlr_surface_get_texture(surface)
+      wlroots.wlr_render_texture_with_matrix(renderer,
+					     texture,
+					     matrix,
+					     1.0);
+      local now = ffi.new("struct timespec")
+      ffi.C.clock_gettime(CLOCK_MONOTONIC, now)
+      wlroots.wlr_surface_send_frame_done(surface, now);
+   end
+end
+
+function render_frame(renderer, compositor, output)
    wlroots.wlr_output_make_current(output, nil)
    wlroots.wlr_renderer_begin(renderer, output.width, output.height)
+
+--[[
    color = ffi.new("float[4]", {1.0, 0, 0, 1.0})
    wlroots.wlr_renderer_clear(renderer, color)
+]]--
+
+   local head = compositor.surface_resources
+   local el = head.next
+   while el ~= head do
+      local resource =  wayland.wl_resource_from_link(el)
+      render_surface(renderer,
+		     wlroots.wlr_surface_from_resource(resource),
+		     output)
+      el = el.next
+   end
+
    wlroots.wlr_output_swap_buffers(output, nil, nil)
    wlroots.wlr_renderer_end(renderer)
+
 end
 
 function new_output(output)
@@ -49,7 +95,7 @@ function new_output(output)
 	 listen(output.events.frame, function(l, data)
 		   local renderer =
 		      wlroots.wlr_backend_get_renderer(backend)
-		   render_frame(renderer, output)
+		   render_frame(renderer, compositor, output)
 	 end),
       output = output
    }
@@ -74,6 +120,12 @@ wlroots.wlr_gamma_control_manager_create(display);
 -- wlroots.wlr_primary_selection_device_manager_create(display);
 wlroots.wlr_idle_create(display);
 
+
+local now = ffi.new("struct timespec")
+ffi.C.clock_gettime(CLOCK_MONOTONIC, now)
+print(now.tv_sec, now.tv_nsec)
+
+wlroots.wlr_xdg_shell_v6_create(display);
 
 wlroots.wlr_backend_start(backend)
 wayland.wl_display_run(display);

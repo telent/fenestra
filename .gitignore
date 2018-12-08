@@ -9,3 +9,5 @@ wlr-example.ini
 rootston.ini
 TAGS
 *~
+*.out
+fenestra/fenestra

@@ -7,14 +7,12 @@ local ffi = require("ffi")
 local io = require("io")
 ffi.cdef(io.open("fenestra/defs.h.out","r"):read("a*"))
 
-
 local wlroots = ffi.load('build/libwlroots.so')
 local wayland = ffi.load(package.searchpath('wayland-server',package.cpath))
 
 local display = wayland.wl_display_create()
 local event_loop = wayland.wl_display_get_event_loop(display)
 local backend = wlroots.wlr_backend_autocreate(display, nil)
-
 
 local compositor = wlroots.wlr_compositor_create(display,
 						 wlroots.wlr_backend_get_renderer(backend));
@@ -55,11 +53,6 @@ function render_frame(renderer, compositor, output)
    wlroots.wlr_output_make_current(output, nil)
    wlroots.wlr_renderer_begin(renderer, output.width, output.height)
 
---[[
-   color = ffi.new("float[4]", {1.0, 0, 0, 1.0})
-   wlroots.wlr_renderer_clear(renderer, color)
-]]--
-
    local head = compositor.surface_resources
    local el = head.next
    while el ~= head do
@@ -78,12 +71,19 @@ end
 function new_output(output)
    print("new output", output.width,  output.height)
    if not wayland.wl_list_empty(output.modes) then
-      -- required for drm and other fullscreen backends
-      print("XXX should set mode")
+      -- required for drm and (presumably) other fullscreen backends
+      local link_p = ffi.cast('unsigned char *', output.modes.prev)
+      local offset = ffi.offsetof("struct wlr_output_mode","link")
+      mode = ffi.cast('struct wlr_output_mode *', (link_p - offset))
+      print("setting mode ",mode.width, mode.height)
+      wlroots.wlr_output_set_mode(output, mode);
    end
+
    wlroots.wlr_output_create_global(output)
+   local ts = ffi.new("struct timespec");
+   ffi.C.clock_gettime(ffi.C.clock_monotonic, ts)
    return {
-      last_frame = os.clock(),
+      last_frame = ts,
       destroy_listener = listen(
 	 output.events.destroy, function(l, data)
 	    print("must clean up output", data)

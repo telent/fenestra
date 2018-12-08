@@ -173,6 +173,16 @@ struct wlr_output {
 
 };
 
+struct wlr_output_mode {
+        uint32_t flags; // enum wl_output_mode
+        int32_t width, height;
+        int32_t refresh; // mHz
+        struct wl_list link;
+};
+
+bool wlr_output_set_mode(struct wlr_output *output,
+			 struct wlr_output_mode *mode) ;
+
 int putenv(const char *);
 
 struct wlr_gamma_control_manager *wlr_gamma_control_manager_create(struct wl_display *display) ;

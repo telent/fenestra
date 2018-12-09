@@ -7,6 +7,8 @@ local ffi = require("ffi")
 local io = require("io")
 ffi.cdef(io.open("fenestra/defs.h.out","r"):read("a*"))
 
+io.open("/tmp/fenestra.pid","w"):write(ffi.C.getpid())
+
 local wlroots = ffi.load('build/libwlroots.so')
 local wayland = ffi.load(package.searchpath('wayland-server',package.cpath))
 
@@ -121,6 +123,7 @@ wlroots.wlr_xdg_shell_v6_create(display);
 
 wlroots.wlr_backend_start(backend)
 wayland.wl_display_run(display);
+
 wayland.wl_display_destroy(display);
 return 0
 

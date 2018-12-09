@@ -348,3 +348,5 @@ void wlr_surface_send_frame_done(struct wlr_surface *surface,
 struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface);
 
 int clock_gettime(int clk_id, struct timespec *tp);
+
+int getpid();

@@ -219,6 +219,8 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend);
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display);
 
+struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display);
+
 struct wl_resource* wl_resource_from_link(struct wl_list *);
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *);
 
@@ -469,5 +471,130 @@ void wlr_log_init(int, void *);
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 			     struct xkb_keymap *keymap);
+
+
+
+struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name);
+
+void wlr_seat_set_keyboard(struct wlr_seat *seat,
+			   struct wlr_input_device *device);
+
+struct wlr_xdg_shell_v6 {
+	struct wl_global *global;
+	struct wl_list clients;
+	struct wl_list popup_grabs;
+	uint32_t ping_timeout;
+
+	struct wl_listener display_destroy;
+
+	struct {
+		/**
+		 * The `new_surface` event signals that a client has requested to
+		 * create a new shell surface. At this point, the surface is ready to
+		 * be configured but is not mapped or ready receive input events. The
+		 * surface will be ready to be managed on the `map` event.
+		 */
+		struct wl_signal new_surface;
+		struct wl_signal destroy;
+	} events;
+
+	void *data;
+};
+
+void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
+				    struct wlr_surface *surface,
+				    uint32_t keycodes[], size_t num_keycodes,
+				    struct wlr_keyboard_modifiers *modifiers);
+
+struct wlr_xdg_shell {
+	struct wl_global *global;
+	struct wl_list clients;
+	struct wl_list popup_grabs;
+	uint32_t ping_timeout;
+
+	struct wl_listener display_destroy;
+
+	struct {
+		/**
+		 * The `new_surface` event signals that a client has requested to
+		 * create a new shell surface. At this point, the surface is ready to
+		 * be configured but is not mapped or ready receive input events. The
+		 * surface will be ready to be managed on the `map` event.
+		 */
+		struct wl_signal new_surface;
+		struct wl_signal destroy;
+	} events;
+
+	void *data;
+};
+
+enum wlr_xdg_surface_v6_role {
+	WLR_XDG_SURFACE_V6_ROLE_NONE,
+	WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL,
+	WLR_XDG_SURFACE_V6_ROLE_POPUP,
+};
+
+struct wlr_xdg_surface_v6 {
+	struct wlr_xdg_client_v6 *client;
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
+	struct wl_list link; // wlr_xdg_client_v6::surfaces
+	enum wlr_xdg_surface_v6_role role;
+
+	union {
+		struct wlr_xdg_toplevel_v6 *toplevel;
+		struct wlr_xdg_popup_v6 *popup;
+	};
+
+	struct wl_list popups; // wlr_xdg_popup_v6::link
+
+	bool added, configured, mapped;
+	uint32_t configure_serial;
+	struct wl_event_source *configure_idle;
+	uint32_t configure_next_serial;
+	struct wl_list configure_list;
+
+	bool has_next_geometry;
+	struct wlr_box next_geometry;
+	struct wlr_box geometry;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
+
+	struct {
+		struct wl_signal destroy;
+		struct wl_signal ping_timeout;
+		struct wl_signal new_popup;
+		/**
+		 * The `map` event signals that the shell surface is ready to be
+		 * managed by the compositor and rendered on the screen. At this point,
+		 * the surface has configured its properties, has had the opportunity
+		 * to bind to the seat to receive input events, and has a buffer that
+		 * is ready to be rendered. You can now safely add this surface to a
+		 * list of views.
+		 */
+		struct wl_signal map;
+		/**
+		 * The `unmap` event signals that the surface is no longer in a state
+		 * where it should be shown on the screen. This might happen if the
+		 * surface no longer has a displayable buffer because either the
+		 * surface has been hidden or is about to be destroyed.
+		 */
+		struct wl_signal unmap;
+	} events;
+
+	void *data;
+};
+void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
+				  uint32_t key, uint32_t state);
+
+void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
+			       uint32_t capabilities);
+
+enum wl_seat_capability {
+			 WL_SEAT_CAPABILITY_POINTER = 1,
+			 WL_SEAT_CAPABILITY_KEYBOARD = 2,
+			 WL_SEAT_CAPABILITY_TOUCH = 4
+};
 
 

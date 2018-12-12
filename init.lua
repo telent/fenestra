@@ -1,19 +1,28 @@
--- this is a cut-paste-translate job from
+-- this started as a cut-paste-translate job from
 -- https://drewdevault.com/2018/02/17/Writing-a-Wayland-compositor-1.html
+
+-- but it also cribs bits from rootston
 
 inspect = dofile(string.gsub(os.getenv("LUA_INSPECT"), '/.lua$/', '')).inspect
 
 local ffi = require("ffi")
 local io = require("io")
+
 ffi.cdef(io.open("fenestra/defs.h.out","r"):read("a*"))
 
 io.open("/tmp/fenestra.pid","w"):write(ffi.C.getpid())
 
 local wlroots = ffi.load('build/libwlroots.so')
+wlroots.wlr_log_init(3, nil)
+
 local wayland = ffi.load(package.searchpath('wayland-server',package.cpath))
 local xkbcommon = ffi.load(package.searchpath('xkbcommon',package.cpath))
 
 local display = wayland.wl_display_create()
+-- for the moment we have one seat only
+local comfy_chair = {
+   inputs = {},
+}
 local event_loop = wayland.wl_display_get_event_loop(display)
 local backend = wlroots.wlr_backend_autocreate(display, nil)
 
@@ -21,7 +30,6 @@ local compositor = wlroots.wlr_compositor_create(
    display,
    wlroots.wlr_backend_get_renderer(backend));
 
-wlroots.wlr_log_init(3, nil)
 
 function listen(signal, fn)
    local listener = ffi.new("struct wl_listener")
@@ -61,9 +69,8 @@ function render_frame(renderer, compositor, output)
    local el = head.next
    while el ~= head do
       local resource =  wayland.wl_resource_from_link(el)
-      render_surface(renderer,
-		     wlroots.wlr_surface_from_resource(resource),
-		     output)
+      local surface = wlroots.wlr_surface_from_resource(resource)
+      render_surface(renderer, surface, output)
       el = el.next
    end
 
@@ -109,14 +116,34 @@ local new_output_listener = listen(
    function(listener, data)
       local o = new_output(ffi.cast("struct wlr_output *", data))
       outputs[#outputs + 1] = o
-      print(inspect(outputs))
 end)
+
+function focus_surface_for_keys(seat, surface)
+   local k = seat.inputs.keyboard
+   if k then
+      local wk = k.wlr_keyboard
+      print("notify enter")
+      wlroots.wlr_seat_keyboard_notify_enter(seat.wlr_seat,
+					     surface,
+					     wk.keycodes,
+					     wk.num_keycodes,
+					     wk.modifiers);
+   end
+end
+
 
 function handle_key(listener, data)
    local event = ffi.cast("struct wlr_event_keyboard_key *", data);
    print("key", event.time_msec, event.keycode,
 	 event.state, event.update_state);
+   if comfy_chair.wlr_seat then
+      wlroots.wlr_seat_keyboard_notify_key(comfy_chair.wlr_seat,
+					   event.time_msec,
+					   event.keycode,
+					   event.state);
+   end
 end
+
 function handle_keymap(listener, data)
    print("keymap")
 end
@@ -148,7 +175,7 @@ function set_default_keymap(keyboard)
 end
 
 
-function new_keyboard(device)
+function new_keyboard(seat, device)
    local keyboard = device.keyboard
    print("keyboard", keyboard,
 	 keyboard.keymap_string,
@@ -157,14 +184,19 @@ function new_keyboard(device)
    local key_listener = listen(keyboard.events.key, handle_key)
    local keymap_listener = listen(keyboard.events.keymap, handle_keymap)
    set_default_keymap(keyboard)
+   wlroots.wlr_seat_set_keyboard(seat.wlr_seat, device)
+   wlroots.wlr_seat_set_capabilities(seat.wlr_seat, ffi.C.WL_SEAT_CAPABILITY_KEYBOARD);
+ 				     
    return {
       type = 'keyboard',
+      wlr_keyboard = keyboard,
       key_listener = key_listener,
       keymap_listener =  keymap_listener,
    }
 end
-function new_pointer(d)
-   print("pointer", d)
+
+function new_pointer(seat, device)
+   print("pointer", device)
    return {
       type = 'pointer'
    }
@@ -175,21 +207,21 @@ input_types = {
    [ffi.C.WLR_INPUT_DEVICE_POINTER] = new_pointer,
 };
 
-function new_input(input)
+
+function new_input(seat, input)
    print("new input", input)
    local f = input_types[tonumber(input.type)]
-   local p = f(input)
+   local p = f(seat, input)
    return p
 end
-
-local inputs = {}
 
 local new_input_listener = listen(
    backend.events.new_input,
    function(listener, data)
-      local device = new_input(ffi.cast("struct wlr_input_device *", data))
-      inputs[device.type] = device
-      print(inspect(inputs))
+      local device = new_input(comfy_chair,
+			       ffi.cast("struct wlr_input_device *", data))
+      comfy_chair.inputs[device.type] = device
+      print(inspect(comfy_chair.inputs))
 end)
 
 local socket = ffi.string(wayland.wl_display_add_socket_auto(display))
@@ -198,12 +230,32 @@ print("Running compositor on wayland display ", socket);
 ffi.C.putenv("WAYLAND_DISPLAY=".. socket)
 
 wayland.wl_display_init_shm(display);
+
+
 wlroots.wlr_gamma_control_manager_create(display);
 -- wlroots.wlr_screenshooter_create(display);
 -- wlroots.wlr_primary_selection_device_manager_create(display);
 wlroots.wlr_idle_create(display);
 
-wlroots.wlr_xdg_shell_v6_create(display);
+local xdg_shell = wlroots.wlr_xdg_shell_create(display);
+local xdg_shell_v6 = wlroots.wlr_xdg_shell_v6_create(display);
+--[[
+listen(xdg_shell.events.new_surface, function(l, d)
+	  local surface = ffi.cast("struct wlr_xdg_surface *", d)
+	  print("new xdg surface", surface)
+	  focus_surface_for_keys(comfy_chair, surface.surface)
+end)
+--]]
+listen(xdg_shell_v6.events.new_surface, function(l, d)
+	  local surface = ffi.cast("struct wlr_xdg_surface_v6 *", d)
+	  print("new v6 surface", surface)
+	  focus_surface_for_keys(comfy_chair, surface.surface)
+end)
+
+
+-- this can't be done when comfy_chair is created as it causes
+-- weston-terminal to segfault at startup.  Don't ask me why
+comfy_chair.wlr_seat = wlroots.wlr_seat_create(display, "comfy_chair")
 
 wlroots.wlr_backend_start(backend)
 wayland.wl_display_run(display);

@@ -11,15 +11,17 @@ io.open("/tmp/fenestra.pid","w"):write(ffi.C.getpid())
 
 local wlroots = ffi.load('build/libwlroots.so')
 local wayland = ffi.load(package.searchpath('wayland-server',package.cpath))
+local xkbcommon = ffi.load(package.searchpath('xkbcommon',package.cpath))
 
 local display = wayland.wl_display_create()
 local event_loop = wayland.wl_display_get_event_loop(display)
 local backend = wlroots.wlr_backend_autocreate(display, nil)
 
-local compositor = wlroots.wlr_compositor_create(display,
-						 wlroots.wlr_backend_get_renderer(backend));
+local compositor = wlroots.wlr_compositor_create(
+   display,
+   wlroots.wlr_backend_get_renderer(backend));
 
-local outputs = {}
+wlroots.wlr_log_init(3, nil)
 
 function listen(signal, fn)
    local listener = ffi.new("struct wl_listener")
@@ -100,12 +102,94 @@ function new_output(output)
    }
 end
 
-new_output_listener = listen(
+local outputs = {}
+
+local new_output_listener = listen(
    backend.events.new_output,
    function(listener, data)
       local o = new_output(ffi.cast("struct wlr_output *", data))
       outputs[#outputs + 1] = o
       print(inspect(outputs))
+end)
+
+function handle_key(listener, data)
+   local event = ffi.cast("struct wlr_event_keyboard_key *", data);
+   print("key", event.time_msec, event.keycode,
+	 event.state, event.update_state);
+end
+function handle_keymap(listener, data)
+   print("keymap")
+end
+
+function set_default_keymap(keyboard)
+   rules = ffi.new("struct xkb_rule_names", {})
+   -- rules.rules = getenv("XKB_DEFAULT_RULES");
+   -- rules.model = getenv("XKB_DEFAULT_MODEL");
+   -- rules.layout = getenv("XKB_DEFAULT_LAYOUT");
+   -- rules.variant = getenv("XKB_DEFAULT_VARIANT");
+   -- rules.options = getenv("XKB_DEFAULT_OPTIONS");
+
+   local context = xkbcommon.xkb_context_new(0);
+   if not context then
+      print("Failed to create XKB context")
+      return false
+   end
+
+   local keymap = xkbcommon.xkb_keymap_new_from_names(context, rules, 0)
+
+   if not keymap then
+      print("Failed to create XKB keymap")
+      return false
+   end
+
+   wlroots.wlr_keyboard_set_keymap(keyboard, keymap);
+   xkbcommon.xkb_keymap_unref(keymap);
+   xkbcommon.xkb_context_unref(context);
+end
+
+
+function new_keyboard(device)
+   local keyboard = device.keyboard
+   print("keyboard", keyboard,
+	 keyboard.keymap_string,
+	 keyboard.keymap_size,
+	 keyboard.num_keycodes   )
+   local key_listener = listen(keyboard.events.key, handle_key)
+   local keymap_listener = listen(keyboard.events.keymap, handle_keymap)
+   set_default_keymap(keyboard)
+   return {
+      type = 'keyboard',
+      key_listener = key_listener,
+      keymap_listener =  keymap_listener,
+   }
+end
+function new_pointer(d)
+   print("pointer", d)
+   return {
+      type = 'pointer'
+   }
+end
+
+input_types = {
+   [ffi.C.WLR_INPUT_DEVICE_KEYBOARD] = new_keyboard,
+   [ffi.C.WLR_INPUT_DEVICE_POINTER] = new_pointer,
+};
+
+function new_input(input)
+   print("new input", input)
+   local f = input_types[tonumber(input.type)]
+   local p = f(input)
+   return p
+end
+
+local inputs = {}
+
+local new_input_listener = listen(
+   backend.events.new_input,
+   function(listener, data)
+      local device = new_input(ffi.cast("struct wlr_input_device *", data))
+      inputs[device.type] = device
+      print(inspect(inputs))
 end)
 
 local socket = ffi.string(wayland.wl_display_add_socket_auto(display))

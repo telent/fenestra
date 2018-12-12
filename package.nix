@@ -62,7 +62,7 @@ in stdenv.mkDerivation rec {
 
   # this only works if you are in the fenestra subdirectory.
   # really need to tidy this up some time when it's not 1am
-  LUA_CPATH = "${wayland}/lib/lib?.so;../build/lib?.so;;";
+  LUA_CPATH = "${wayland}/lib/lib?.so;${libxkbcommon}/lib/lib?.so;../build/lib?.so;;";
 
   mesonFlags = [
     "-Dlibcap=enabled" "-Dlogind=enabled" "-Dxwayland=enabled" "-Dx11-backend=enabled"

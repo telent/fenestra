@@ -4,7 +4,8 @@ OBJS=$(patsubst %.c,%.o, $(SRCS))
 LIBS=$(shell pkg-config --libs luajit) \
      $(shell pkg-config --libs wayland-server) \
      -L../build
-CFLAGS=-I../include
+CFLAGS=-I../include $(shell pkg-config --cflags xkbcommon) 
+
 
 defs.h.out:defs.h Makefile
 	$(CC) $(CFLAGS) -P -E - < $^ |cat -s > $$$$ && mv $$$$ $@

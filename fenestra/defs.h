@@ -350,3 +350,124 @@ struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface);
 int clock_gettime(int clk_id, struct timespec *tp);
 
 int getpid();
+
+enum wlr_button_state {
+	WLR_BUTTON_RELEASED,
+	WLR_BUTTON_PRESSED,
+};
+
+enum wlr_input_device_type {
+	WLR_INPUT_DEVICE_KEYBOARD,
+	WLR_INPUT_DEVICE_POINTER,
+	WLR_INPUT_DEVICE_TOUCH,
+	WLR_INPUT_DEVICE_TABLET_TOOL,
+	WLR_INPUT_DEVICE_TABLET_PAD,
+};
+typedef uint32_t 	xkb_led_index_t;
+typedef uint32_t 	xkb_mod_index_t;
+typedef uint32_t 	xkb_mod_mask_t;
+
+#define WLR_LED_COUNT 3
+#define WLR_MODIFIER_COUNT 8
+
+#define WLR_KEYBOARD_KEYS_CAP 32
+
+struct wlr_keyboard_modifiers {
+	xkb_mod_mask_t depressed;
+	xkb_mod_mask_t latched;
+	xkb_mod_mask_t locked;
+	xkb_mod_mask_t group;
+};
+
+struct wlr_keyboard {
+	const struct wlr_keyboard_impl *impl;
+
+	char *keymap_string;
+	size_t keymap_size;
+	struct xkb_keymap *keymap;
+	struct xkb_state *xkb_state;
+	xkb_led_index_t led_indexes[WLR_LED_COUNT];
+	xkb_mod_index_t mod_indexes[WLR_MODIFIER_COUNT];
+  
+	uint32_t keycodes[WLR_KEYBOARD_KEYS_CAP];
+	size_t num_keycodes;
+	struct wlr_keyboard_modifiers modifiers;
+
+	struct {
+		int32_t rate;
+		int32_t delay;
+	} repeat_info;
+
+	struct {
+		/**
+		 * The `key` event signals with a `wlr_event_keyboard_key` event that a
+		 * key has been pressed or released on the keyboard. This event is
+		 * emitted before the xkb state of the keyboard has been updated
+		 * (including modifiers).
+		 */
+		struct wl_signal key;
+
+		/**
+		 * The `modifiers` event signals that the modifier state of the
+		 * `wlr_keyboard` has been updated. At this time, you can read the
+		 * modifier state of the `wlr_keyboard` and handle the updated state by
+		 * sending it to clients.
+		 */
+		struct wl_signal modifiers;
+		struct wl_signal keymap;
+		struct wl_signal repeat_info;
+	} events;
+
+	void *data;
+};
+
+enum wlr_key_state {
+	WLR_KEY_RELEASED,
+	WLR_KEY_PRESSED,
+};
+
+struct wlr_event_keyboard_key {
+	uint32_t time_msec;
+	uint32_t keycode;
+	bool update_state; // if backend doesn't update modifiers on its own
+	enum wlr_key_state state;
+};
+
+struct wlr_input_device {
+	const struct wlr_input_device_impl *impl;
+
+	enum wlr_input_device_type type;
+	unsigned int vendor, product;
+	char *name;
+	// Or 0 if not applicable to this device
+	double width_mm, height_mm;
+	char *output_name;
+
+	/* wlr_input_device.type determines which of these is valid */
+	union {
+		void *_device;
+		struct wlr_keyboard *keyboard;
+		struct wlr_pointer *pointer;
+		struct wlr_touch *touch;
+		struct wlr_tablet *tablet;
+		struct wlr_tablet_pad *tablet_pad;
+	};
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+
+	void *data;
+
+	struct wl_list link;
+};
+
+
+void wlr_log_init(int, void *);
+
+#include <xkbcommon/xkbcommon.h>
+
+void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
+			     struct xkb_keymap *keymap);
+
+

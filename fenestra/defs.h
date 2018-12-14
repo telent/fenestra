@@ -587,7 +587,8 @@ struct wlr_xdg_surface_v6 {
 };
 void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
 				  uint32_t key, uint32_t state);
-
+void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *,
+					struct wlr_keyboard_modifiers *);
 void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 			       uint32_t capabilities);
 

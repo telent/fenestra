@@ -148,6 +148,10 @@ function handle_keymap(listener, data)
    print("keymap")
 end
 
+function send_key_modifiers(seat, keyboard)
+   wlroots.wlr_seat_keyboard_notify_modifiers(seat, keyboard.modifiers)
+end
+
 function set_default_keymap(keyboard)
    rules = ffi.new("struct xkb_rule_names", {})
    -- rules.rules = getenv("XKB_DEFAULT_RULES");
@@ -183,6 +187,10 @@ function new_keyboard(seat, device)
 	 keyboard.num_keycodes   )
    local key_listener = listen(keyboard.events.key, handle_key)
    local keymap_listener = listen(keyboard.events.keymap, handle_keymap)
+   local modifiers_listener = listen(keyboard.events.modifiers,
+				     function(l,d)
+					send_key_modifiers(seat.wlr_seat, keyboard)
+   end)
    set_default_keymap(keyboard)
    wlroots.wlr_seat_set_keyboard(seat.wlr_seat, device)
    wlroots.wlr_seat_set_capabilities(seat.wlr_seat, ffi.C.WL_SEAT_CAPABILITY_KEYBOARD);
@@ -192,6 +200,7 @@ function new_keyboard(seat, device)
       wlr_keyboard = keyboard,
       key_listener = key_listener,
       keymap_listener =  keymap_listener,
+      modifiers_listener = modifiers_listener
    }
 end
 

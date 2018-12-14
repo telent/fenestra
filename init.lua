@@ -236,7 +236,8 @@ end)
 local socket = ffi.string(wayland.wl_display_add_socket_auto(display))
 
 print("Running compositor on wayland display ", socket);
-ffi.C.putenv("WAYLAND_DISPLAY=".. socket)
+
+ffi.C.putenv(ffi.cast("char *", "WAYLAND_DISPLAY=".. socket))
 
 wayland.wl_display_init_shm(display);
 

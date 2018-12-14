@@ -205,7 +205,25 @@ function new_keyboard(seat, device)
 end
 
 function new_pointer(seat, device)
-   print("pointer", device)
+   local pointer = device.pointer
+   print("pointer", pointer)
+   listen(pointer.events.motion, function(l,d)
+	     local e = ffi.cast("struct wlr_event_pointer_motion *",d)
+	     print("motion", e.delta_x, e.delta_y)
+   end)
+   listen(pointer.events.motion_absolute, function(l,d)
+	     local e = ffi.cast("struct wlr_event_pointer_motion_absolute *",d)
+	     -- x & y range from 0.0 to 1.0, or thereabouts
+	     print("motion absolute", e.x, e.y)
+   end)
+   listen(pointer.events.button, function(l,d)
+	     local e = ffi.cast("struct wlr_event_pointer_button *",d)
+	     print("button", e.button, e.state)
+   end)
+   listen(pointer.events.axis, function(l,d)
+	     local e = ffi.cast("struct wlr_event_pointer_axis *",d)
+	     print("axis", e.orientation, e.delta, e.delta_discrete)
+   end)
    return {
       type = 'pointer'
    }

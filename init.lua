@@ -19,6 +19,14 @@ local wayland = ffi.load(package.searchpath('wayland-server',package.cpath))
 local xkbcommon = ffi.load(package.searchpath('xkbcommon',package.cpath))
 
 local display = wayland.wl_display_create()
+
+function listen(signal, fn)
+   local listener = ffi.new("struct wl_listener")
+   listener.notify = fn
+   wayland.wl_list_insert(signal.listener_list.prev, listener.link)
+   return listener
+end
+
 -- for the moment we have one seat only
 local comfy_chair = {
    inputs = {},
@@ -30,13 +38,6 @@ local compositor = wlroots.wlr_compositor_create(
    display,
    wlroots.wlr_backend_get_renderer(backend));
 
-
-function listen(signal, fn)
-   local listener = ffi.new("struct wl_listener")
-   listener.notify = fn
-   wayland.wl_list_insert(signal.listener_list.prev, listener.link)
-   return listener
-end
 
 function render_surface(renderer, surface, output)
    if wlroots.wlr_surface_has_buffer(surface) then

@@ -4,6 +4,7 @@
 #include <time.h>
 #include <quadmath.h>
 #include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_cursor.h>
 
 enum clocks {
 	     clock_realtime = CLOCK_REALTIME,
@@ -54,33 +55,10 @@ struct wlr_backend {
 	} events;
 };
 
-typedef struct pixman_region32_data     pixman_region32_data_t;
 typedef struct pixman_box32             pixman_box32_t;
-typedef struct pixman_rectangle32       pixman_rectangle32_t;
 typedef struct pixman_region32          pixman_region32_t;
 
-struct pixman_region32_data {
-    long                size;
-    long                numRects;
-/*  pixman_box32_t      rects[size];   in memory but not explicitly declared */
-};
 
-struct pixman_rectangle32
-{
-    int32_t x, y;
-    uint32_t width, height;
-};
-
-struct pixman_box32
-{
-    int32_t x1, y1, x2, y2;
-};
-
-struct pixman_region32
-{
-    pixman_box32_t          extents;
-    pixman_region32_data_t  *data;
-};
 
 bool wlr_output_swap_buffers(struct wlr_output *output,
 			     struct timespec *when,
@@ -89,75 +67,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output,
 
 typedef int int32_t;
 
-struct wlr_output {
-	const struct wlr_output_impl *impl;
-	struct wlr_backend *backend;
-	struct wl_display *display;
 
-	struct wl_global *global;
-	struct wl_list resources;
-
-	char name[24];
-	char make[56];
-	char model[16];
-	char serial[16];
-	int32_t phys_width, phys_height; // mm
-
-	// Note: some backends may have zero modes
-	struct wl_list modes;
-	struct wlr_output_mode *current_mode;
-	int32_t width, height;
-	int32_t refresh; // mHz, may be zero
-
-	bool enabled;
-	float scale;
-	enum wl_output_subpixel subpixel;
-	enum wl_output_transform transform;
-
-	bool needs_swap;
-	// damage for cursors and fullscreen surface, in output-local coordinates
-	pixman_region32_t damage;
-	bool frame_pending;
-	float transform_matrix[9];
-
-	struct {
-		// Request to render a frame
-		struct wl_signal frame;
-		// Emitted when buffers need to be swapped (because software cursors or
-		// fullscreen damage or because of backend-specific logic)
-		struct wl_signal needs_swap;
-		// Emitted right before buffer swap
-		struct wl_signal swap_buffers; // wlr_output_event_swap_buffers
-		// Emitted right after the buffer has been presented to the user
-		struct wl_signal present; // wlr_output_event_present
-		struct wl_signal enable;
-		struct wl_signal mode;
-		struct wl_signal scale;
-		struct wl_signal transform;
-		struct wl_signal destroy;
-	} events;
-
-	struct wl_event_source *idle_frame;
-
-	struct wl_list cursors; // wlr_output_cursor::link
-	struct wlr_output_cursor *hardware_cursor;
-	int software_cursor_locks; // number of locks forcing software cursors
-
-	// the output position in layout space reported to clients
-//	int32_t lx, ly;
-
-	struct wl_listener display_destroy;
-
-	void *data;
-
-};
-
-struct wlr_output_mode {
-        uint32_t flags; // enum wl_output_mode
-        int32_t width, height;
-        int32_t refresh; // mHz
-        struct wl_list link;
-};
 
 bool wlr_output_set_mode(struct wlr_output *output,
 			 struct wlr_output_mode *mode) ;
@@ -288,10 +198,6 @@ struct wlr_subsurface_state {
 };
 bool wlr_surface_has_buffer(struct wlr_surface *surface);
 
-struct wlr_box {
-	int x, y;
-	int width, height;
-};
 
 void wlr_matrix_project_box(float mat[9], const struct wlr_box *box,
 			    //enum wl_output_transform transform,

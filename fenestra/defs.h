@@ -5,6 +5,8 @@
 #include <quadmath.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/xcursor.h>
 
 enum clocks {
 	     clock_realtime = CLOCK_REALTIME,

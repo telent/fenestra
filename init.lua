@@ -20,6 +20,10 @@ local xkbcommon = ffi.load(package.searchpath('xkbcommon',package.cpath))
 
 local display = wayland.wl_display_create()
 
+local THEME = 'default' -- 'breeze_cursors'
+
+xcursor_manager = wlroots.wlr_xcursor_manager_create(THEME, 24) -- ROOTS_XCURSOR_SIZE==24
+
 function listen(signal, fn)
    local listener = ffi.new("struct wl_listener")
    listener.notify = fn
@@ -27,18 +31,21 @@ function listen(signal, fn)
    return listener
 end
 
-function new_cursor()
+function new_cursor(layout)
    local cursor = wlroots.wlr_cursor_create()
---   wlr_cursor_attach_output_layout(cursor, desktop->layout);
+   wlroots.wlr_cursor_attach_output_layout(cursor, layout)
    listen(cursor.events.motion_absolute,
 	  function(l,d)
 	     local e = ffi.cast("struct wlr_event_pointer_motion_absolute *",d)
 	     -- x & y range from 0.0 to 1.0, or thereabouts
+	     wlroots.wlr_cursor_warp_absolute(cursor, e.device, e.x, e.y)
 	     print("motion absolute", e.x, e.y)
    end)
    listen(cursor.events.motion,
 	  function(l,d)
 	     local e = ffi.cast("struct wlr_event_pointer_motion *",d)
+	     wlroots.wlr_cursor_move(cursor, e.device, e.delta_x, e.delta_y)
+
 	     print("motion", e.delta_x, e.delta_y)
    end)
    listen(cursor.events.button, function(l,d)
@@ -54,10 +61,14 @@ function new_cursor()
    }
 end
 
+local outputs = {
+   wlr_output_layout = wlroots.wlr_output_layout_create()
+}
+
 -- for the moment we have one seat only
 local comfy_chair = {
    inputs = {},
-   cursor = new_cursor()
+   cursor = new_cursor(outputs.wlr_output_layout),
 }
 local event_loop = wayland.wl_display_get_event_loop(display)
 local backend = wlroots.wlr_backend_autocreate(display, nil)
@@ -102,14 +113,14 @@ function render_frame(renderer, compositor, output)
       render_surface(renderer, surface, output)
       el = el.next
    end
-
+   wlroots.wlr_output_render_software_cursors(output, nil);
    wlroots.wlr_output_swap_buffers(output, nil, nil)
    wlroots.wlr_renderer_end(renderer)
 
 end
 
-function new_output(output)
-   print("new output", output.width,  output.height)
+function new_output(layout, output)
+   print("new output", output.width,  output.height, output.scale)
    if not wayland.wl_list_empty(output.modes) then
       -- required for drm and (presumably) other fullscreen backends
       local link_p = ffi.cast('unsigned char *', output.modes.prev)
@@ -122,6 +133,19 @@ function new_output(output)
    wlroots.wlr_output_create_global(output)
    local ts = ffi.new("struct timespec");
    ffi.C.clock_gettime(ffi.C.clock_monotonic, ts)
+
+   wlroots.wlr_output_layout_add_auto(layout, output)
+   
+   -- xcursor manager is a per-scale thing not a per-output
+   -- thing and doesn't really belong here
+   if wlroots.wlr_xcursor_manager_load(xcursor_manager, output.scale) > 0 then
+      print("can't load xcursor theme for scale", output.scale)
+   end
+   local cr = comfy_chair.cursor
+   wlroots.wlr_xcursor_manager_set_cursor_image(xcursor_manager,
+						"left_ptr",
+						cr.wlr_cursor);
+
    return {
       last_frame = ts,
       destroy_listener = listen(
@@ -138,12 +162,12 @@ function new_output(output)
    }
 end
 
-local outputs = {}
 
 local new_output_listener = listen(
    backend.events.new_output,
    function(listener, data)
-      local o = new_output(ffi.cast("struct wlr_output *", data))
+      local o = new_output(outputs.wlr_output_layout,
+			   ffi.cast("struct wlr_output *", data))
       outputs[#outputs + 1] = o
 end)
 
@@ -233,12 +257,22 @@ function new_keyboard(seat, device)
    }
 end
 
+function update_seat_capabilities(seat)
+   local caps = 0
+   if seat.inputs.pointer then
+      caps = caps + ffi.C.WL_SEAT_CAPABILITY_POINTER
+   end
+   if seat.inputs.keyboard then
+      caps = caps + ffi.C.WL_SEAT_CAPABILITY_KEYBOARD
+   end
+   print("seat capabilities", caps)
+   wlroots.wlr_seat_set_capabilities(seat.wlr_seat, caps)
+end
+
 function new_pointer(seat, device)
    local pointer = device.pointer
    print("pointer", pointer)
    wlroots.wlr_cursor_attach_input_device(seat.cursor.wlr_cursor, device)
---[[
---]]
    return {
       type = 'pointer'
    }
@@ -263,6 +297,7 @@ local new_input_listener = listen(
       local device = new_input(comfy_chair,
 			       ffi.cast("struct wlr_input_device *", data))
       comfy_chair.inputs[device.type] = device
+      update_seat_capabilities(comfy_chair)
       print(inspect(comfy_chair.inputs))
 end)
 

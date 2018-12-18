@@ -101,9 +101,12 @@ function render_surface(renderer, surface, output)
    end
 end
 
+local BLACK = ffi.new("float[4]", {0.0, 0, 0, 1.0})
+
 function render_frame(renderer, compositor, output)
    wlroots.wlr_output_make_current(output, nil)
    wlroots.wlr_renderer_begin(renderer, output.width, output.height)
+   wlroots.wlr_renderer_clear(renderer, BLACK)
 
    local head = compositor.surface_resources
    local el = head.next

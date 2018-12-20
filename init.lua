@@ -26,7 +26,10 @@ xcursor_manager = wlroots.wlr_xcursor_manager_create(THEME, 24) -- ROOTS_XCURSOR
 
 function listen(signal, fn)
    local listener = ffi.new("struct wl_listener")
-   listener.notify = fn
+   listener.notify = function (l, d)
+      -- close over listener to stop it being GCed
+      fn(listener, d)
+   end
    wayland.wl_list_insert(signal.listener_list.prev, listener.link)
    return listener
 end

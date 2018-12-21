@@ -3,10 +3,29 @@
 
 -- but it also cribs bits from rootston
 
-inspect = dofile(string.gsub(os.getenv("LUA_INSPECT"), '/.lua$/', '')).inspect
-
 local ffi = require("ffi")
 local io = require("io")
+
+-- helpful stuff for debugging [
+inspect = dofile(string.gsub(os.getenv("LUA_INSPECT"), '/.lua$/', '')).inspect
+local dbg = require("debugger")
+reflect = require("ffi_reflect")
+
+function tabulate(s) 
+  local t = {}
+  for refct in reflect.typeof(s).element_type:members() do
+     if refct.name then
+	t[refct.name] = s[refct.name]
+     end
+  end
+  return t
+end
+
+function pp(o)
+   print(inspect(tabulate(o)))
+end
+-- ] end of debug helper code
+
 
 ffi.cdef(io.open("fenestra/defs.h.out","r"):read("a*"))
 

@@ -21,11 +21,10 @@ if conf_data.get('WLR_HAS_XWAYLAND', 0) == 1
 	sources += 'xwayland.c'
 endif
 
-lua            = dependency('lua')
 
 executable(
 	'rootston',
 	sources,
-	dependencies: [wlroots, wlr_protos, pixman, lua],
+	dependencies: [wlroots, wlr_protos, pixman],
 	build_by_default: get_option('rootston'),
 )

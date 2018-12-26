@@ -5,6 +5,7 @@
 #include <quadmath.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/xcursor.h>
 
@@ -113,91 +114,7 @@ struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display);
 struct wl_resource* wl_resource_from_link(struct wl_list *);
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *);
 
-struct wlr_surface_state {
-	uint32_t committed; // enum wlr_surface_state_field
 
-	struct wl_resource *buffer_resource;
-	int32_t dx, dy; // relative to previous position
-	pixman_region32_t surface_damage, buffer_damage; // clipped to bounds
-	pixman_region32_t opaque, input;
-	enum wl_output_transform transform;
-	int32_t scale;
-	struct wl_list frame_callback_list; // wl_resource
-
-	int width, height; // in surface-local coordinates
-	int buffer_width, buffer_height;
-
-	struct wl_listener buffer_destroy;
-};
-
-
-struct wlr_surface {
-	struct wl_resource *resource;
-	struct wlr_renderer *renderer;
-	/**
-	 * The surface's buffer, if any. A surface has an attached buffer when it
-	 * commits with a non-null buffer in its pending state. A surface will not
-	 * have a buffer if it has never committed one, has committed a null buffer,
-	 * or something went wrong with uploading the buffer.
-	 */
-	struct wlr_buffer *buffer;
-	/**
-	 * The buffer position, in surface-local units.
-	 */
-	int sx, sy;
-	/**
-	 * The last commit's buffer damage, in buffer-local coordinates. This
-	 * contains both the damage accumulated by the client via
-	 * `wlr_surface_state.surface_damage` and `wlr_surface_state.buffer_damage`.
-	 * If the buffer has been resized, the whole buffer is damaged.
-	 *
-	 * This region needs to be scaled and transformed into output coordinates,
-	 * just like the buffer's texture. In addition, if the buffer has shrunk the
-	 * old size needs to be damaged and if the buffer has moved the old and new
-	 * positions need to be damaged.
-	 */
-	pixman_region32_t buffer_damage;
-	/**
-	 * The current opaque region, in surface-local coordinates. It is clipped to
-	 * the surface bounds. If the surface's buffer is using a fully opaque
-	 * format, this is set to the whole surface.
-	 */
-	pixman_region32_t opaque_region;
-	/**
-	 * The current input region, in surface-local coordinates. It is clipped to
-	 * the surface bounds.
-	 */
-	pixman_region32_t input_region;
-	/**
-	 * `current` contains the current, committed surface state. `pending`
-	 * accumulates state changes from the client between commits and shouldn't
-	 * be accessed by the compositor directly. `previous` contains the state of
-	 * the previous commit.
-	 */
-	struct wlr_surface_state current, pending, previous;
-
-	const struct wlr_surface_role *role; // the lifetime-bound role or NULL
-	void *role_data; // role-specific data
-
-	struct {
-		struct wl_signal commit;
-		struct wl_signal new_subsurface;
-		struct wl_signal destroy;
-	} events;
-
-	struct wl_list subsurfaces; // wlr_subsurface::parent_link
-
-	// wlr_subsurface::parent_pending_link
-	struct wl_list subsurface_pending_list;
-
-	struct wl_listener renderer_destroy;
-
-	void *data;
-};
-
-struct wlr_subsurface_state {
-	int32_t x, y;
-};
 bool wlr_surface_has_buffer(struct wlr_surface *surface);
 
 

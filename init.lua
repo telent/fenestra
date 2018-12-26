@@ -99,11 +99,17 @@ local compositor = wlroots.wlr_compositor_create(
    display,
    wlroots.wlr_backend_get_renderer(backend));
 
+surface_positions =  {}
+
+function positions_key(surface)
+   return tonumber(ffi.cast("unsigned int", surface))
+end
 
 function render_surface(renderer, surface, output)
+   local pos = surface_positions[positions_key(surface)]
    if wlroots.wlr_surface_has_buffer(surface) then
       box=ffi.new("struct wlr_box", {
-		     x = 20, y = 20,
+		     x = pos.x, y=pos.y,
 		     width = surface.current.width,
 		     height = surface.current.height
       })
@@ -349,9 +355,32 @@ listen(xdg_shell.events.new_surface, function(l, d)
 	  focus_surface_for_keys(comfy_chair, surface.surface)
 end)
 --]]
+
+listen(compositor.events.new_surface, function(l, d)
+	  local wlr_surface = ffi.cast("struct wlr_surface *", d)
+	  surface_positions[positions_key(wlr_surface)] = {
+	     wlr_surface = wlr_surface,
+	  }
+end)
+
+
 listen(xdg_shell_v6.events.new_surface, function(l, d)
 	  local surface = ffi.cast("struct wlr_xdg_surface_v6 *", d)
 	  print("new v6 surface", surface)
+	  listen(surface.events.map, function(l, d)
+		    local surface = ffi.cast("struct wlr_xdg_surface_v6 *", d)
+		    local wlr_surface = surface.surface
+		    local p=surface_positions[positions_key(wlr_surface)]
+		    p.x = math.random(10,600)
+		    p.y = math.random(10,400)
+		    print(inspect(surface_positions))
+	  end)
+	  
+	  listen(surface.surface.events.commit, function(l, d)
+		    local c = surface.surface.current
+		    local b = ffi.new("struct wlr_box")
+		    wlroots.wlr_surface_get_extends(surface.surface, b)
+	  end)
 	  focus_surface_for_keys(comfy_chair, surface.surface)
 end)
 

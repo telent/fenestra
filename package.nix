@@ -1,9 +1,12 @@
 { stdenv, fetchFromGitHub, fetchurl
+, libudev
+, libX11
 , luajit
 , pkgconfig
 , pixman
 , wayland
 , wlroots
+, mesa_noglu
 , libxkbcommon
 } :
 let
@@ -23,10 +26,15 @@ in stdenv.mkDerivation {
   version = "0.0.1";
   src = ./.;
   FENNEL = "${fennel}/fennel";
+  LUA_CPATH = "${wayland}/lib/lib?.so;${libxkbcommon}/lib/lib?.so;${wlroots}/lib/lib?.so;;";
+
   WLROOTS = "${wlroots}";
   nativeBuildInputs = [
+    libudev
+    libX11
     libxkbcommon
     luajit
+    mesa_noglu
     pixman
     pkgconfig
     wayland

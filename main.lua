@@ -6,10 +6,15 @@ local function _0_(...)
   return ffi.cdef(f.read(f, "*all"))
 end
 _0_(...)
-print(ffi.C.WL_SEAT_CAPABILITY_KEYBOARD)
+local function from_cpath(name)
+  return package.searchpath(name, package.cpath)
+end
+local wlroots = ffi.load(from_cpath("wlroots"))
+local wayland = ffi.load(from_cpath("wayland-server"))
+wlroots.wlr_log_init(3, nil)
 local function write_pid()
   local f = io.open("/tmp/fenestra.pid", "w")
   local pid = ffi.C.getpid()
   return f.write(f, pid)
 end
-return write_pid()
+return wlroots.wlr_backend_autocreate(wayland.wl_display_create(), nil)

@@ -20,6 +20,9 @@ defs.h.out:defs.h Makefile
 	$(CC) $(CFLAGS) -P -E - < $^ |cat -s > /tmp/$$PPID
 	mv /tmp/$$PPID $@
 
+TAGS:
+	etags $$(find $$(pkg-config --variable=includedir wlroots) $$(pkg-config --variable=includedir wayland-server) -name \*.[ch])
+
 
 fenestra: $(LUA_SRCS) defs.h.out
 	echo "#!/usr/bin/env luajit" > fenestra.tmp

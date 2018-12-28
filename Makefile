@@ -13,10 +13,13 @@ CFLAGS=$(shell pkg-config --cflags xkbcommon) \
        $(shell pkg-config --cflags wlroots) 
 
 %.lua:%.fnl
-	$(FENNEL) --compile $< > $$$$ && mv $$$$ $@
+	$(FENNEL) --compile $< > /tmp/$$PPID
+	mv /tmp/$$PPID $@
 
 defs.h.out:defs.h Makefile
-	$(CC) $(CFLAGS) -P -E - < $^ |cat -s > $$$$ && mv $$$$ $@
+	$(CC) $(CFLAGS) -P -E - < $^ |cat -s > /tmp/$$PPID
+	mv /tmp/$$PPID $@
+
 
 fenestra: $(LUA_SRCS) defs.h.out
 	echo "#!/usr/bin/env luajit" > fenestra.tmp

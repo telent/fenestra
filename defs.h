@@ -9,3 +9,6 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/xcursor.h>
 
+#include <sys/types.h>
+#include <unistd.h>
+

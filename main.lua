@@ -1,0 +1,15 @@
+print("hello world")
+local ffi = require("ffi")
+local io = require("io")
+local function _0_(...)
+  local f = io.open("defs.h.out", "r")
+  return ffi.cdef(f.read(f, "*all"))
+end
+_0_(...)
+print(ffi.C.WL_SEAT_CAPABILITY_KEYBOARD)
+local function write_pid()
+  local f = io.open("/tmp/fenestra.pid", "w")
+  local pid = ffi.C.getpid()
+  return f.write(f, pid)
+end
+return write_pid()

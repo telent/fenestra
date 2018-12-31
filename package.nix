@@ -1,13 +1,15 @@
 { stdenv, fetchFromGitHub, fetchurl
-, libudev
 , libX11
-, luajit
-, pkgconfig
-, pixman
-, wayland
-, wlroots
-, mesa_noglu
+, libudev
 , libxkbcommon
+, luajit
+, mesa_noglu
+, pixman
+, pkgconfig
+, rlwrap
+, wayland
+, wayland-protocols
+, wlroots
 } :
 let
   inspect_lua = fetchurl {
@@ -26,6 +28,7 @@ in stdenv.mkDerivation {
   version = "0.0.1";
   src = ./.;
   FENNEL = "${fennel}/fennel";
+  LUA_PATH = "${fennel}/?.fnl.lua;${fennel}/?.lua;;";
   LUA_CPATH = "${wayland}/lib/lib?.so;${libxkbcommon}/lib/lib?.so;${wlroots}/lib/lib?.so;;";
 
   WLROOTS = "${wlroots}";
@@ -38,6 +41,7 @@ in stdenv.mkDerivation {
     pixman
     pkgconfig
     wayland
+    wayland-protocols
     wlroots
   ];
 }

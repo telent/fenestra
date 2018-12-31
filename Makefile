@@ -1,6 +1,7 @@
 
 FENNEL_SRCS=main.fnl
 LUA_SRCS=$(patsubst %.fnl,%.lua,$(FENNEL_SRCS))
+PROTOCOLS=$(shell pkg-config wayland-protocols --variable=datarootdir)
 
 default: fenestra
 
@@ -10,14 +11,19 @@ LIBS=$(shell pkg-config --libs luajit) \
 
 CFLAGS=$(shell pkg-config --cflags xkbcommon) \
        $(shell pkg-config --cflags wayland-server) \
-       $(shell pkg-config --cflags wlroots) 
+       $(shell pkg-config --cflags wlroots) \
+	-I .
 
 %.lua:%.fnl
 	$(FENNEL) --compile $< > /tmp/$$PPID
 	mv /tmp/$$PPID $@
 
-defs.h.out:defs.h Makefile
-	$(CC) $(CFLAGS) -P -E - < $^ |cat -s > /tmp/$$PPID
+xdg-shell-protocol.h:
+	wayland-scanner server-header $(PROTOCOLS)/wayland-protocols/stable/xdg-shell/xdg-shell.xml  xdg-shell-protocol.h
+
+defs.h.out: xdg-shell-protocol.h Makefile
+%.h.out: %.h 
+	$(CC) $(CFLAGS) -P -E - < $< |cat -s > /tmp/$$PPID
 	mv /tmp/$$PPID $@
 
 TAGS:

@@ -23,6 +23,16 @@
 
 ;; (write-pid)
 
+(fn wl-add-listener [signal func]
+  (let [listener (ffi.new "struct wl_listener")]
+    (set listener.notify (lambda [l d]
+                           ;; close over listener to stop it being GCed
+                           (func listener d)))
+    (wayland.wl_list_insert signal.listener_list.prev listener.link)
+    listener))
+
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; we are going to do a "flowing data" architecture, loosely inspired
@@ -54,21 +64,6 @@
 ;;; encode it (and other less awful but equally complex gestures
 ;;; involving state machines) in a non-hacky way
 
-
-;;;
-
-(local initial-state
-       (let [d (wayland.wl_display_create)]
-         {:display d
-          :layout (wlroots.wlr_output_layout_create)
-          :socket (ffi.string (wayland.wl_display_add_socket_auto d))
-          :backend (wlroots.wlr_backend_autocreate d nil)}))
-
-
-(var app-state initial-state)
-
-(var handlers {})
-
 (lambda merge [old-value new-value]
   (each [k v (pairs new-value)]
     (tset old-value k v))
@@ -78,10 +73,14 @@
   (table.insert coll v)
   coll)
 
+(var handlers {})
+
 (lambda listen [name handler] 
   (tset handlers
         name
         (conj (or (. handlers name) []) handler)))
+
+(var app-state {})
 
 (lambda dispatch [name value]
   (let [fns (. handlers name)]
@@ -91,6 +90,21 @@
           (pp new-value)
           (set app-state (merge app-state new-value)))))))
 
+
+(fn new-backend [display]
+  (let [be (wlroots.wlr_backend_autocreate display nil)]
+    (wl-add-listener
+     be.events.new_output
+     (fn [_ data]
+       (dispatch :new-output (ffi.cast "struct wlr_output *" data))))
+    be))
+
+(fn initial-state []
+  (let [d (wayland.wl_display_create)]
+    {:display d
+     :layout (wlroots.wlr_output_layout_create)
+     :socket (ffi.string (wayland.wl_display_add_socket_auto d))
+     :backend (new-backend d)}))
 
 (listen :light-blue-touchpaper
         (fn [event state]
@@ -103,6 +117,16 @@
             (wlroots.wlr_idle_create d)
             {:shell (wlroots.wlr_xdg_shell_create d)
              :seats {:hotseat (wlroots.wlr_seat_create d "hotseat")}})))
+
+(listen :new-output
+        (fn [event state]
+          (print "new output")
+          (pp state)
+          (pp event)
+          {:outputs (conj (or state.outputs []) event)}
+          ))
+
+(set app-state (initial-state))
 (dispatch :light-blue-touchpaper {})
 (wlroots.wlr_backend_start app-state.backend)
 (wayland.wl_display_run app-state.display)

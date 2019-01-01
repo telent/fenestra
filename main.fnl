@@ -64,11 +64,13 @@
 ;;; encode it (and other less awful but equally complex gestures
 ;;; involving state machines) in a non-hacky way
 
+;; this happens to be destructive but the caller should not depend on it
 (lambda merge [old-value new-value]
   (each [k v (pairs new-value)]
     (tset old-value k v))
   old-value)
 
+;; this happens to be destructive but the caller should not depend on it
 (fn conj [coll v]
   (table.insert coll v)
   coll)

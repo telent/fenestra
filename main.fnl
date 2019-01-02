@@ -90,6 +90,15 @@
       (each [_ f (ipairs fns)]
         (let [new-value (f value app-state)]
           (pp new-value)
+          ;; 1. probably we are going to change the handler signature to
+          ;; return attribute paths (a la clojure's update-in) instead
+          ;; of just top-level attribute keys, which will make it much
+          ;; easier for handlers to update deeply nested bits of the
+          ;; state without accidentally blatting large sections of
+          ;; unrelated state.
+
+          ;; 2. again, this happens to be destructive but the caller
+          ;; should not depend on it
           (set app-state (merge app-state new-value)))))))
 
 
@@ -112,6 +121,11 @@
         (fn [event state]
           (pp state)
           (let [d state.display]
+            ;; there is a little more (read: any) side-effecting code
+            ;; being called here than I'd like in what is supposed to
+            ;; be a purely functional event handler.  We will push it
+            ;; into some kind of effect handler just as soon as it
+            ;; becomes more obvious *what* kind of effect handler
             (wayland.wl_display_init_shm d)
             ;;(wlroots.wlr_gamma_control_manager_create d)
             ;; wlroots.wlr_screenshooter_create(display);

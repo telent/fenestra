@@ -2,3 +2,5 @@ TAGS
 fenestra
 *.out
 xdg-*-protocol.h
+*.fnl.lua
+*~

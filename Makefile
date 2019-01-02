@@ -1,6 +1,6 @@
 
 FENNEL_SRCS=main.fnl
-LUA_SRCS=$(patsubst %.fnl,%.lua,$(FENNEL_SRCS))
+LUA_SRCS=$(patsubst %.fnl,%.fnl.lua,$(FENNEL_SRCS))
 PROTOCOLS=$(shell pkg-config wayland-protocols --variable=datarootdir)
 
 default: fenestra
@@ -14,7 +14,7 @@ CFLAGS=$(shell pkg-config --cflags xkbcommon) \
        $(shell pkg-config --cflags wlroots) \
 	-I .
 
-%.lua:%.fnl
+%.fnl.lua:%.fnl
 	$(FENNEL) --compile $< > /tmp/$$PPID
 	mv /tmp/$$PPID $@
 

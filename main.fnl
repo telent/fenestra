@@ -6,24 +6,24 @@
 (let [f (io.open "defs.h.out" "r")]
   (ffi.cdef (f.read f "*all")))
 
-(fn from-cpath [name]
+(lambda from-cpath [name]
   (package.searchpath name package.cpath))
 
 (local wlroots (ffi.load (from-cpath "wlroots")))
 (local wayland (ffi.load (from-cpath "wayland-server")))
 (local view (require "fennelview"))
-(global pp (fn [x] (print (view x))))
+(global pp (lambda [x] (print (view x))))
 
 (wlroots.wlr_log_init 3 nil)
 
-(fn write-pid []
+(lambda write-pid []
   (let [f (io.open "/tmp/fenestra.pid" "w")
         pid (ffi.C.getpid)]
     (f.write f pid)))
 
 ;; (write-pid)
 
-(fn wl-add-listener [signal func]
+(lambda wl-add-listener [signal func]
   (let [listener (ffi.new "struct wl_listener")]
     (set listener.notify (lambda [l d]
                            ;; close over listener to stop it being GCed
@@ -71,7 +71,7 @@
   old-value)
 
 ;; this happens to be destructive but the caller should not depend on it
-(fn conj [coll v]
+(lambda conj [coll v]
   (table.insert coll v)
   coll)
 
@@ -102,15 +102,15 @@
           (set app-state (merge app-state new-value)))))))
 
 
-(fn new-backend [display]
+(lambda new-backend [display]
   (let [be (wlroots.wlr_backend_autocreate display nil)]
     (wl-add-listener
      be.events.new_output
-     (fn [_ data]
+     (lambda [_ data]
        (dispatch :new-output (ffi.cast "struct wlr_output *" data))))
     be))
 
-(fn new-compositor [display renderer]
+(lambda new-compositor [display renderer]
   (let [compositor (wlroots.wlr_compositor_create display renderer)]
     (wl-add-listener
      compositor.events.new_surface
@@ -119,7 +119,7 @@
          (dispatch :new-surface {:wlr-surface wlr_surface}))))
     compositor))
 
-(fn initial-state []
+(lambda initial-state []
   (let [display (wayland.wl_display_create)
         backend (new-backend display)]
     {
@@ -133,7 +133,7 @@
 
 
 (listen :light-blue-touchpaper
-        (fn [event state]
+        (lambda [event state]
           (pp state)
           (let [d state.display]
             ;; there is a little more (read: any) side-effecting code
@@ -166,11 +166,11 @@
     (wlroots.wlr_renderer_end renderer)))
 
 (listen :new-output
-        (fn [output state]
+        (lambda [output state]
           (let [l
                 (wl-add-listener
                  output.events.frame
-                 (fn [_ _] (render-frame output)))]
+                 (lambda [_ _] (render-frame output)))]
             (wlroots.wlr_output_create_global output)
             {:outputs (conj (or state.outputs [])
                             {:wl-output output :frame-listener l})})))

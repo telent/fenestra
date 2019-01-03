@@ -111,11 +111,17 @@
     be))
 
 (fn initial-state []
-  (let [d (wayland.wl_display_create)]
-    {:display d
+  (let [display (wayland.wl_display_create)
+        backend (new-backend display)]
+    {
+     :backend backend
+     :compositor (wlroots.wlr_compositor_create
+                  display
+                  (wlroots.wlr_backend_get_renderer backend))
+     :display display
      :layout (wlroots.wlr_output_layout_create)
-     :socket (ffi.string (wayland.wl_display_add_socket_auto d))
-     :backend (new-backend d)}))
+     :socket (ffi.string (wayland.wl_display_add_socket_auto display))
+     }))
 
 (listen :light-blue-touchpaper
         (fn [event state]
@@ -134,13 +140,29 @@
             {:shell (wlroots.wlr_xdg_shell_create d)
              :seats {:hotseat (wlroots.wlr_seat_create d "hotseat")}})))
 
+(global colors
+        {:red (ffi.new "float[4]", [1.0 0.0 0.0 1.0])
+         :black (ffi.new "float[4]", [1.0 0.0 0.0 1.0])})
+
+(lambda render-frame [output]
+  ;; ideally this wouldn't refer to the global app-state
+  (let [backend app-state.backend
+        compositor app-state.compositor
+        renderer (wlroots.wlr_backend_get_renderer backend)]
+    (wlroots.wlr_output_make_current output, nil)
+    (wlroots.wlr_renderer_begin renderer, output.width, output.height)
+    (wlroots.wlr_renderer_clear renderer colors.red) ; BLACK)
+    (wlroots.wlr_output_swap_buffers output  nil nil)
+    (wlroots.wlr_renderer_end renderer)))
+
 (listen :new-output
-        (fn [event state]
-          (print "new output")
-          (pp state)
-          (pp event)
-          {:outputs (conj (or state.outputs []) event)}
-          ))
+        (fn [output state]
+          (let [l
+                (wl-add-listener
+                 output.events.frame
+                 (fn [_ _] (render-frame output)))]
+            {:outputs (conj (or state.outputs [])
+                            {:wl-output output :frame-listener l})})))
 
 (set app-state (initial-state))
 (dispatch :light-blue-touchpaper {})

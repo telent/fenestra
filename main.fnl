@@ -110,18 +110,27 @@
        (dispatch :new-output (ffi.cast "struct wlr_output *" data))))
     be))
 
+(fn new-compositor [display renderer]
+  (let [compositor (wlroots.wlr_compositor_create display renderer)]
+    (wl-add-listener
+     compositor.events.new_surface
+     (lambda [l d]
+       (let [wlr_surface (ffi.cast "struct wlr_surface *", d)]
+         (dispatch :new-surface {:wlr-surface wlr_surface}))))
+    compositor))
+
 (fn initial-state []
   (let [display (wayland.wl_display_create)
         backend (new-backend display)]
     {
      :backend backend
-     :compositor (wlroots.wlr_compositor_create
-                  display
-                  (wlroots.wlr_backend_get_renderer backend))
+     :compositor (new-compositor display (wlroots.wlr_backend_get_renderer backend))
      :display display
      :layout (wlroots.wlr_output_layout_create)
      :socket (ffi.string (wayland.wl_display_add_socket_auto display))
      }))
+
+
 
 (listen :light-blue-touchpaper
         (fn [event state]

@@ -23,7 +23,7 @@ xdg-shell-protocol.h:
 
 defs.h.out: xdg-shell-protocol.h Makefile
 %.h.out: %.h 
-	$(CC) $(CFLAGS) -P -E - < $< |cat -s > /tmp/$$PPID
+	$(CC) $(CFLAGS) -P -E - < $< | sed -e 's/static \([0-9]\+\)/\1/g' |   cat -s > /tmp/$$PPID
 	mv /tmp/$$PPID $@
 
 TAGS:

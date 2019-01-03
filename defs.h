@@ -3,6 +3,7 @@
 #define _Float128 long double
 #include <quadmath.h>
 #include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_idle.h>

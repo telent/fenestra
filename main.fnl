@@ -146,7 +146,8 @@
             ;; wlroots.wlr_screenshooter_create(display);
             ;;- wlroots.wlr_primary_selection_device_manager_create(display);
             (wlroots.wlr_idle_create d)
-            {:shell (wlroots.wlr_xdg_shell_create d)
+            {:xdg-shell (wlroots.wlr_xdg_shell_create d)
+             :xdg-shell-v6 (wlroots.wlr_xdg_shell_v6_create d)
              :seats {:hotseat (wlroots.wlr_seat_create d "hotseat")}})))
 
 (global colors

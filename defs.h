@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/xcursor.h>
 #include <wlr/backend.h>
 #include <wlr/util/log.h>

@@ -170,6 +170,7 @@
                 (wl-add-listener
                  output.events.frame
                  (fn [_ _] (render-frame output)))]
+            (wlroots.wlr_output_create_global output)
             {:outputs (conj (or state.outputs [])
                             {:wl-output output :frame-listener l})})))
 

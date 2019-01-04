@@ -101,11 +101,11 @@
 (var app-state {})
 
 (lambda dispatch [name value]
+  (print "dispatch " name)
   (let [fns (. handlers name)]
     (when fns
       (each [_ f (ipairs fns)]
         (let [new-value (f value app-state)]
-          (pp new-value)
           ;; 1. probably we are going to change the handler signature to
           ;; return attribute paths (a la clojure's update-in) instead
           ;; of just top-level attribute keys, which will make it much

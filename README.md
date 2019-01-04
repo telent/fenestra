@@ -4,7 +4,7 @@ Some day this will be a Wayland compositor written in Fennel.  Right now
 it doesn't do a lot.
 
 Github thinks it's a fork of wlroots. This is an accident of history and
-will stop being the same some time soon.
+will stop being the case some time soon.
 
 
 ![Screenshot](https://files.mastodon.social/media_attachments/files/009/688/595/original/c93cbe0521f4407c.png)

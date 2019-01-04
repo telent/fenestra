@@ -2,6 +2,7 @@
 
 (local ffi (require "ffi"))
 (local io  (require "io"))
+(local math (require "math"))
 
 (let [f (io.open "defs.h.out" "r")]
   (ffi.cdef (f.read f "*all")))
@@ -81,6 +82,15 @@
   (table.insert coll v)
   coll)
 
+(lambda filter [f arr]
+  (let [found []]
+    (each [_ v (ipairs arr)]
+      (if (f v)
+          (table.insert found  v)))
+    found))
+
+(lambda first [c] (. c 1))
+
 (var handlers {})
 
 (lambda listen [name handler] 
@@ -128,6 +138,27 @@
          (dispatch :new-surface wlr_surface))))
     compositor))
 
+(lambda new-xdg-shell [display]
+  (let [s (wlroots.wlr_xdg_shell_create display)
+        s6 (wlroots.wlr_xdg_shell_v6_create display)]
+    (wl-add-listener s.events.new_surface
+                     (lambda [l d]
+	               (let [xs (ffi.cast "struct wlr_xdg_surface *" d)]
+                         (wl-add-listener xs.events.map
+                                          (lambda [l d]
+                                            (dispatch :map-shell
+                                                      xs.surface))))))
+    (wl-add-listener s6.events.new_surface
+                     (lambda [l d]
+	               (let [xs (ffi.cast "struct wlr_xdg_surface_v6 *" d)]
+                         (wl-add-listener xs.events.map
+                                          (lambda [l d]
+                                            (dispatch :map-shell
+                                                      xs.surface))))))
+    [s s6]))
+    
+
+
 (lambda initial-state []
   (let [display (wayland.wl_display_create)
         backend (new-backend display)]
@@ -154,13 +185,12 @@
             ;; wlroots.wlr_screenshooter_create(display);
             ;;- wlroots.wlr_primary_selection_device_manager_create(display);
             (wlroots.wlr_idle_create d)
-            {:xdg-shell (wlroots.wlr_xdg_shell_create d)
-             :xdg-shell-v6 (wlroots.wlr_xdg_shell_v6_create d)
+            {:xdg-shell (new-xdg-shell d)
              :seats {:hotseat (wlroots.wlr_seat_create d "hotseat")}})))
 
 (global colors
         {:red (ffi.new "float[4]", [1.0 0.0 0.0 1.0])
-         :black (ffi.new "float[4]", [1.0 0.0 0.0 1.0])})
+         :black (ffi.new "float[4]", [0.0 0.0 0.0 1.0])})
 
 (lambda render-surface [s output renderer]
   (let [x s.x
@@ -175,9 +205,10 @@
 		          :height surface.current.height})
             texture (wlroots.wlr_surface_get_texture surface)]
         (wlroots.wlr_matrix_project_box
-         s.matrix  box
+         s.matrix
+         box
 	 surface.current.transform
-	 -0.05 ; , -- rotation
+	 s.rotation
 	 output.transform_matrix)
         (wlroots.wlr_render_texture_with_matrix
          renderer texture s.matrix 1.0)
@@ -194,7 +225,9 @@
 
     (when app-state.surfaces
       (each [_ s (ipairs app-state.surfaces)]
-        (render-surface s output renderer)))
+        (if (and s.x s.y)
+            ;; not every surface is a shell, not every shell is mapped
+            (render-surface s output renderer))))
     
     (wlroots.wlr_output_swap_buffers output  nil nil)
     (wlroots.wlr_renderer_end renderer)))
@@ -214,9 +247,25 @@
           (print "new surface")
           (let [s {:wlr-surface surface
                    :matrix (ffi.new "float[16]")
-                   :x 25
-                   :y 25}]
+                   ;; a new surface may not be a shell, and even if it is we
+                   ;; don't know how big to render it (and perhaps therefore
+                   ;; where to put it) until it's mapped.
+                   :x nil
+                   :y nil}]
             {:surfaces (conj (or state.surfaces []) s)})))
+
+(listen :map-shell
+        (lambda [wl-surface state]
+          (let [shell-surface
+                (first (filter (fn [x] (= x.wlr-surface wl-surface))
+                               state.surfaces))]
+            (print "map " wl-surface)
+            ;; cheating. we should return the new leaves, not
+            ;; change the tree in-place
+            (tset shell-surface :rotation (- (/ (math.random) 10.0) 0.05))
+            (tset shell-surface :x (math.random 200))
+            (tset shell-surface :y (math.random 100)))
+          {}))
 
 (set app-state (initial-state))
 (dispatch :light-blue-touchpaper {})

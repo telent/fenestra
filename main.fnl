@@ -44,10 +44,8 @@
 ;; I'm sure there are better and more efficient ways to make hash keys
 ;; from ffi cdata objects, and some day I will find out what they are
 (lambda ffi-address [cdata]
-  (let [p (ffi.cast "void *" cdata)
-        buf (ffi.new "char[16]")]
-    (ffi.C.sprintf buf "%x" p)
-    (tonumber (ffi.string buf) 16)))
+  (tonumber (ffi.cast "intptr_t" (ffi.cast "void *" cdata))))
+
 
 
 

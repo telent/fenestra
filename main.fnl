@@ -26,15 +26,12 @@
     (ffi.C.clock_gettime ffi.C.clock_monotonic ts)
     ts))
 
-
 (wlroots.wlr_log_init 3 nil)
 
 (lambda write-pid []
   (let [f (io.open "/tmp/fenestra.pid" "w")
         pid (ffi.C.getpid)]
     (f.write f pid)))
-
-;; (write-pid)
 
 (lambda wl-add-listener [signal func]
   (let [listener (ffi.new "struct wl_listener")]
@@ -43,6 +40,14 @@
                            (func listener d)))
     (wayland.wl_list_insert signal.listener_list.prev listener.link)
     listener))
+
+;; I'm sure there are better and more efficient ways to make hash keys
+;; from ffi cdata objects, and some day I will find out what they are
+(lambda ffi-address [cdata]
+  (let [p (ffi.cast "void *" cdata)
+        buf (ffi.new "char[16]")]
+    (ffi.C.sprintf buf "%x" p)
+    (tonumber (ffi.string buf) 16)))
 
 
 
@@ -162,17 +167,14 @@
   (let [fns (. handlers name)]
     (when fns
       (each [_ f (ipairs fns)]
-        (let [new-value (f value app-state)]
-          ;; 1. probably we are going to change the handler signature to
-          ;; return attribute paths (a la clojure's update-in) instead
-          ;; of just top-level attribute keys, which will make it much
-          ;; easier for handlers to update deeply nested bits of the
-          ;; state without accidentally blatting large sections of
-          ;; unrelated state.
-
-          ;; 2. again, this happens to be destructive but the caller
+        (let [new-paths (f value app-state)]
+          ;; again, this happens to be destructive but the caller
           ;; should not depend on it
-          (set app-state (merge app-state new-value))
+          (set app-state
+               (reduce (lambda [m path]
+                         (assoc-in m path (. new-paths path)))
+                       app-state
+                       new-paths))
           (pp app-state)
           app-state
           )))))
@@ -242,8 +244,8 @@
             ;; wlroots.wlr_screenshooter_create(display);
             ;;- wlroots.wlr_primary_selection_device_manager_create(display);
             (wlroots.wlr_idle_create d)
-            {:xdg-shell (new-xdg-shell d)
-             :seats {:hotseat (wlroots.wlr_seat_create d "hotseat")}})))
+            {[:xdg-shell] (new-xdg-shell d)
+             [:seats :hotseat] (wlroots.wlr_seat_create d "hotseat")})))
 
 (global colors
         {:red (ffi.new "float[4]", [1.0 0.0 0.0 1.0])
@@ -281,7 +283,7 @@
     (wlroots.wlr_renderer_clear renderer colors.black)
 
     (when app-state.surfaces
-      (each [_ s (ipairs app-state.surfaces)]
+      (each [_ s (pairs app-state.surfaces)]
         (if (and s.x s.y)
             ;; not every surface is a shell, not every shell is mapped
             (render-surface s output renderer))))
@@ -296,8 +298,8 @@
                  output.events.frame
                  (lambda [_ _] (render-frame output)))]
             (wlroots.wlr_output_create_global output)
-            {:outputs (conj (or state.outputs [])
-                            {:wl-output output :frame-listener l})})))
+            {[:outputs (ffi-address output)]
+             {:wl-output output :frame-listener l}})))
 
 (listen :new-surface
         (lambda [surface state]
@@ -309,13 +311,11 @@
                    ;; where to put it) until it's mapped.
                    :x nil
                    :y nil}]
-            {:surfaces (conj (or state.surfaces []) s)})))
+            {[:surfaces (ffi-address surface)] s})))
 
 (listen :map-shell
         (lambda [wl-surface state]
-          (let [shell-surface
-                (first (filter (fn [x] (= x.wlr-surface wl-surface))
-                               state.surfaces))]
+          (let [shell-surface (. state.surfaces (ffi-address wl-surface))]
             (print "map " wl-surface)
             ;; cheating. we should return the new leaves, not
             ;; change the tree in-place

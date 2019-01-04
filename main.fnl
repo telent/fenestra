@@ -93,6 +93,9 @@
   (table.insert coll v)
   coll)
 
+(lambda inc [x] (+ x 1))
+(lambda dec [x] (- x 1))
+
 (assert (= 6 (sum (filter (lambda [x] (< x 3)) [1 7 1 9 2 10 2 4]))))
 
 ;; these are probably not the fastest way of doing this as I suspect

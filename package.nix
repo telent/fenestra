@@ -19,6 +19,7 @@ let
   };
   fennel = fetchFromGitHub {
     owner = "bakpakin";
+    name = "fennel";
     repo = "Fennel";
     rev  = "b4d295c5822b70ae5d750938da1b487082eacabb";
     sha256 = "05bsi0396fbwk2i94a3g2m3rz06l60m5r4k33jqkaywbsghmn6wd";

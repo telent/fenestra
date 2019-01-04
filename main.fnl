@@ -11,8 +11,14 @@
 
 (local wlroots (ffi.load (from-cpath "wlroots")))
 (local wayland (ffi.load (from-cpath "wayland-server")))
-(local view (require "fennelview"))
-(global pp (lambda [x] (print (view x))))
+(local fennelview (require "fennelview"))
+(global pp (lambda [x] (print (fennelview x))))
+
+(lambda now []
+  (let [ts (ffi.new "struct timespec")]
+    (ffi.C.clock_gettime ffi.C.clock_monotonic ts)
+    ts))
+
 
 (wlroots.wlr_log_init 3 nil)
 
@@ -99,7 +105,10 @@
 
           ;; 2. again, this happens to be destructive but the caller
           ;; should not depend on it
-          (set app-state (merge app-state new-value)))))))
+          (set app-state (merge app-state new-value))
+          (pp app-state)
+          app-state
+          )))))
 
 
 (lambda new-backend [display]
@@ -116,7 +125,7 @@
      compositor.events.new_surface
      (lambda [l d]
        (let [wlr_surface (ffi.cast "struct wlr_surface *", d)]
-         (dispatch :new-surface {:wlr-surface wlr_surface}))))
+         (dispatch :new-surface wlr_surface))))
     compositor))
 
 (lambda initial-state []
@@ -134,7 +143,6 @@
 
 (listen :light-blue-touchpaper
         (lambda [event state]
-          (pp state)
           (let [d state.display]
             ;; there is a little more (read: any) side-effecting code
             ;; being called here than I'd like in what is supposed to
@@ -154,6 +162,27 @@
         {:red (ffi.new "float[4]", [1.0 0.0 0.0 1.0])
          :black (ffi.new "float[4]", [1.0 0.0 0.0 1.0])})
 
+(lambda render-surface [s output renderer]
+  (let [x s.x
+        y s.y
+        surface s.wlr-surface]
+    (when (wlroots.wlr_surface_has_buffer surface)
+      (let [box (ffi.new "struct wlr_box"
+                         {
+		          :x x
+                          :y y
+		          :width  surface.current.width
+		          :height surface.current.height})
+            texture (wlroots.wlr_surface_get_texture surface)]
+        (wlroots.wlr_matrix_project_box
+         s.matrix  box
+	 surface.current.transform
+	 -0.05 ; , -- rotation
+	 output.transform_matrix)
+        (wlroots.wlr_render_texture_with_matrix
+         renderer texture s.matrix 1.0)
+        (wlroots.wlr_surface_send_frame_done surface (now))))))
+
 (lambda render-frame [output]
   ;; ideally this wouldn't refer to the global app-state
   (let [backend app-state.backend
@@ -161,7 +190,12 @@
         renderer (wlroots.wlr_backend_get_renderer backend)]
     (wlroots.wlr_output_make_current output, nil)
     (wlroots.wlr_renderer_begin renderer, output.width, output.height)
-    (wlroots.wlr_renderer_clear renderer colors.red) ; BLACK)
+    (wlroots.wlr_renderer_clear renderer colors.black)
+
+    (when app-state.surfaces
+      (each [_ s (ipairs app-state.surfaces)]
+        (render-surface s output renderer)))
+    
     (wlroots.wlr_output_swap_buffers output  nil nil)
     (wlroots.wlr_renderer_end renderer)))
 
@@ -174,6 +208,15 @@
             (wlroots.wlr_output_create_global output)
             {:outputs (conj (or state.outputs [])
                             {:wl-output output :frame-listener l})})))
+
+(listen :new-surface
+        (lambda [surface state]
+          (print "new surface")
+          (let [s {:wlr-surface surface
+                   :matrix (ffi.new "float[16]")
+                   :x 25
+                   :y 25}]
+            {:surfaces (conj (or state.surfaces []) s)})))
 
 (set app-state (initial-state))
 (dispatch :light-blue-touchpaper {})

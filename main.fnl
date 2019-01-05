@@ -187,6 +187,10 @@
      be.events.new_output
      (lambda [_ data]
        (dispatch :new-output (ffi.cast "struct wlr_output *" data))))
+    (wl-add-listener
+     be.events.new_input
+     (lambda [_ data]
+       (dispatch :new-input (ffi.cast "struct wlr_input_device *" data))))
     be))
 
 (lambda new-compositor [display renderer]
@@ -301,6 +305,15 @@
             (wlroots.wlr_output_create_global output)
             {[:outputs (ffi-address output)]
              {:wl-output output :frame-listener l}})))
+
+(listen :new-input
+        (lambda [input state]
+          (let [i {:name (ffi.string input.name)
+                   :vendor input.vendor
+                   :wlr-input-device input
+                   :product input.product}]
+            {[:inputs (ffi.string input.name)] i})))
+
 
 (listen :new-surface
         (lambda [surface state]

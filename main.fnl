@@ -18,6 +18,8 @@
 
 (local wlroots (ffi.load (from-cpath "wlroots")))
 (local wayland (ffi.load (from-cpath "wayland-server")))
+(local xkbcommon (ffi.load (from-cpath "xkbcommon")))
+
 (local fennelview (require "fennelview"))
 (global pp (lambda [x] (print (fennelview x))))
 
@@ -306,14 +308,81 @@
             {[:outputs (ffi-address output)]
              {:wl-output output :frame-listener l}})))
 
+(lambda set-default-keymap [keyboard]
+  (let [rules (ffi.new "struct xkb_rule_names" {})
+   ;; -- rules.rules = getenv("XKB_DEFAULT_RULES");
+   ;; -- rules.model = getenv("XKB_DEFAULT_MODEL");
+   ;; -- rules.layout = getenv("XKB_DEFAULT_LAYOUT");
+   ;; -- rules.variant = getenv("XKB_DEFAULT_VARIANT");
+   ;; -- rules.options = getenv("XKB_DEFAULT_OPTIONS");
+        context (xkbcommon.xkb_context_new 0)
+        keymap (and context
+                    (xkbcommon.xkb_keymap_new_from_names context rules 0))
+        ret (if keymap
+                (wlroots.wlr_keyboard_set_keymap keyboard keymap)
+                (values nil (if context
+                                "Couldn't create keymap"
+                                "Couldn't create xkb context")))]
+    (and keymap (xkbcommon.xkb_keymap_unref keymap))
+    (and context (xkbcommon.xkb_context_unref context))
+    ret))
+
+
+(listen :key
+        (lambda [key-event state]
+          (print "keypress")
+          (let [s state.seats.hotseat]
+            (when s
+              (wlroots.wlr_seat_keyboard_notify_key
+               s
+	       key-event.time_msec,
+	       key-event.keycode,
+	       key-event.state)))
+          {}))
+
+
+(lambda new-keyboard [input state]
+  (let [k input.keyboard
+        s state.seats.hotseat]
+    (set-default-keymap k)
+
+    (wl-add-listener
+     k.events.key
+     (lambda [l d]
+       (dispatch :key
+                 (ffi.cast "struct wlr_event_keyboard_key *" d))))
+
+    ;; XXX need to fix this for multiple seats
+    (wlroots.wlr_seat_set_keyboard s input)
+    (wlroots.wlr_seat_set_capabilities s ffi.C.WL_SEAT_CAPABILITY_KEYBOARD)
+
+    ;; XXX need to fix this for multiple keyboards
+    {:keyboard
+     {:wlr-keyboard k}}))
+
+(lambda new-pointer [input state]
+  {:pointer :tba})
+
+(local input-ctors
+       {
+        ffi.C.WLR_INPUT_DEVICE_KEYBOARD new-keyboard,
+        ffi.C.WLR_INPUT_DEVICE_POINTER new-pointer
+        })
+
 (listen :new-input
         (lambda [input state]
           (let [i {:name (ffi.string input.name)
                    :vendor input.vendor
                    :wlr-input-device input
-                   :product input.product}]
-            {[:inputs (ffi.string input.name)] i})))
-
+                   :product input.product}
+                ctor (. input-ctors (tonumber input.type))]
+            (if (= ctor nil)
+                (do
+                  (print "no support for input device " i.name
+                         " of type " input.type)
+                  {})
+                {[:inputs (ffi.string input.name)]
+                 (merge i (ctor input state))}))))
 
 (listen :new-surface
         (lambda [surface state]

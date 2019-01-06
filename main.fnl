@@ -103,9 +103,7 @@
 
 (lambda empty? [c] (is_null c))
 
-(lambda assoc [tbl k v]
-  (tset tbl k v)
-  tbl)
+(fn id [x] x)
 
 (lambda keys [tbl]
   (let [out []]
@@ -135,6 +133,23 @@
               (fennelview
                {:expected expected
                 :actual actual}))))
+
+(fn assoc [tbl k v ...]
+  (tset tbl k v)
+  (if ...
+      (assoc tbl (unpack [...]))
+      tbl))
+
+(assert-equal {:foo 1 :bar 34}
+              (assoc {:foo 1}
+                     :bar 34))
+
+(assert-equal {:foo 1 :bar 34 :baz 6}
+              (assoc {:foo 1}
+                     :bar 34
+                     :baz 6))
+
+
 
 (lambda assoc-in [tbl path value]
   (let [k (head path)
@@ -398,15 +413,14 @@
 
 (listen :map-shell
         (lambda [wl-surface state]
-          (let [shell-surface (. state.surfaces (ffi-address wl-surface))]
+          (let [id  (ffi-address wl-surface)
+                shell-surface (. state.surfaces id)]
             (print "map " wl-surface)
-            ;; cheating. we should return the new leaves, not
-            ;; change the tree in-place
-            (tset shell-surface :rotation (- (/ (math.random) 10.0) 0.05))
-            (tset shell-surface :x (math.random 200))
-            (tset shell-surface :y (math.random 100)))
-          {}))
-
+            {[:surfaces id] (assoc shell-surface
+                                   :rotation (- (/ (math.random) 10.0) 0.05)
+                                   :x (math.random 200)
+                                   :y (math.random 100))})))
+            
 (set app-state (initial-state))
 (dispatch :light-blue-touchpaper {})
 (wlroots.wlr_backend_start app-state.backend)

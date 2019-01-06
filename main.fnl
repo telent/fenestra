@@ -185,7 +185,7 @@
   (let [fns (. handlers name)]
     (when fns
       (each [_ f (ipairs fns)]
-        (let [new-paths (f value app-state)]
+        (let [new-paths (f app-state value)]
           ;; again, this happens to be destructive but the caller
           ;; should not depend on it
           (set app-state
@@ -254,7 +254,7 @@
 
 
 (listen :light-blue-touchpaper
-        (lambda [event state]
+        (lambda [state event]
           (let [d state.display]
             ;; there is a little more (read: any) side-effecting code
             ;; being called here than I'd like in what is supposed to
@@ -314,7 +314,7 @@
     (wlroots.wlr_renderer_end renderer)))
 
 (listen :new-output
-        (lambda [output state]
+        (lambda [state output]
           (let [l
                 (wl-add-listener
                  output.events.frame
@@ -344,7 +344,7 @@
 
 
 (listen :key
-        (lambda [key-event state]
+        (lambda [state key-event]
           (print "keypress")
           (let [s state.seats.hotseat]
             (when s
@@ -385,7 +385,7 @@
         })
 
 (listen :new-input
-        (lambda [input state]
+        (lambda [state input]
           (let [i {:name (ffi.string input.name)
                    :vendor input.vendor
                    :wlr-input-device input
@@ -400,7 +400,7 @@
                  (merge i (ctor input state))}))))
 
 (listen :new-surface
-        (lambda [surface state]
+        (lambda [state surface]
           (print "new surface")
           (let [s {:wlr-surface surface
                    :matrix (ffi.new "float[16]")
@@ -412,7 +412,7 @@
             {[:surfaces (ffi-address surface)] s})))
 
 (listen :map-shell
-        (lambda [wl-surface state]
+        (lambda [state wl-surface]
           (let [id  (ffi-address wl-surface)
                 shell-surface (. state.surfaces id)]
             (print "map " wl-surface)

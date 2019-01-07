@@ -344,15 +344,13 @@
 
 
 (listen :key
-        (lambda [state key-event]
-          (print "keypress")
-          (let [s state.seats.hotseat]
-            (when s
-              (wlroots.wlr_seat_keyboard_notify_key
-               s
-	       key-event.time_msec,
-	       key-event.keycode,
-	       key-event.state)))
+        (lambda [state seat key-event]
+          (print "keypress" key-event.keycode)
+          (wlroots.wlr_seat_keyboard_notify_key
+           seat
+	   key-event.time_msec,
+	   key-event.keycode,
+	   key-event.state)
           {}))
 
 
@@ -365,6 +363,7 @@
      k.events.key
      (lambda [l d]
        (dispatch :key
+                 s
                  (ffi.cast "struct wlr_event_keyboard_key *" d))))
 
     ;; XXX need to fix this for multiple seats

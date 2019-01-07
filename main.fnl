@@ -105,6 +105,8 @@
 
 (fn id [x] x)
 
+(lambda first [xs] (if (is_null xs) nil (head xs)))
+
 (lambda keys [tbl]
   (let [out []]
     (each [k _ (pairs tbl)]
@@ -413,8 +415,18 @@
 (listen :map-shell
         (lambda [state wl-surface]
           (let [id  (ffi-address wl-surface)
-                shell-surface (. state.surfaces id)]
+                shell-surface (. state.surfaces id)
+                kbd-device (first (filter (fn [k v] v.keyboard) state.inputs))
+                keyboard (and kbd-device
+                              (. state.inputs kbd-device :keyboard :wlr-keyboard))
+                ]
             (print "map " wl-surface)
+            (wlroots.wlr_seat_keyboard_notify_enter
+             state.seats.hotseat
+             wl-surface
+             keyboard.keycodes
+             keyboard.num_keycodes
+             keyboard.modifiers)
             {[:surfaces id] (assoc shell-surface
                                    :rotation (- (/ (math.random) 10.0) 0.05)
                                    :x (math.random 200)

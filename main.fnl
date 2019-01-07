@@ -180,12 +180,12 @@
 
 (var app-state {})
 
-(lambda dispatch [name value]
+(lambda dispatch [name ...]
   (print "dispatch " name)
   (let [fns (. handlers name)]
     (when fns
       (each [_ f (ipairs fns)]
-        (let [new-paths (f app-state value)]
+        (let [new-paths (f app-state (unpack [...]))]
           ;; again, this happens to be destructive but the caller
           ;; should not depend on it
           (set app-state

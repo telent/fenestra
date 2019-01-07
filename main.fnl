@@ -269,7 +269,8 @@
             ;;- wlroots.wlr_primary_selection_device_manager_create(display);
             (wlroots.wlr_idle_create d)
             {[:xdg-shell] (new-xdg-shell d)
-             [:seats :hotseat] (wlroots.wlr_seat_create d "hotseat")})))
+             [:seats :hotseat]
+             {:wlr-seat (wlroots.wlr_seat_create d "hotseat")}})))
 
 (global colors
         {:red (ffi.new "float[4]", [1.0 0.0 0.0 1.0])
@@ -349,7 +350,7 @@
         (lambda [state seat key-event]
           (print "keypress" key-event.keycode)
           (wlroots.wlr_seat_keyboard_notify_key
-           seat
+           seat.wlr-seat
 	   key-event.time_msec,
 	   key-event.keycode,
 	   key-event.state)
@@ -367,8 +368,9 @@
                  seat
                  (ffi.cast "struct wlr_event_keyboard_key *" d))))
 
-    (wlroots.wlr_seat_set_keyboard seat input)
-    (wlroots.wlr_seat_set_capabilities seat ffi.C.WL_SEAT_CAPABILITY_KEYBOARD)
+    (wlroots.wlr_seat_set_keyboard seat.wlr-seat input)
+    (wlroots.wlr_seat_set_capabilities
+     seat.wlr-seat ffi.C.WL_SEAT_CAPABILITY_KEYBOARD)
 
     {:keyboard
      {:wlr-keyboard k}}))
@@ -424,7 +426,7 @@
                 ]
             (print "map " wl-surface)
             (wlroots.wlr_seat_keyboard_notify_enter
-             state.seats.hotseat
+             state.seats.hotseat.wlr-seat
              wl-surface
              keyboard.keycodes
              keyboard.num_keycodes

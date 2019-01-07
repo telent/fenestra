@@ -356,28 +356,27 @@
           {}))
 
 
-(lambda new-keyboard [input state]
-  (let [k input.keyboard
-        s state.seats.hotseat]
+(lambda new-keyboard [seat input state]
+  (let [k input.keyboard]
     (set-default-keymap k)
 
     (wl-add-listener
      k.events.key
      (lambda [l d]
        (dispatch :key
-                 s
+                 seat
                  (ffi.cast "struct wlr_event_keyboard_key *" d))))
 
-    ;; XXX need to fix this for multiple seats
-    (wlroots.wlr_seat_set_keyboard s input)
-    (wlroots.wlr_seat_set_capabilities s ffi.C.WL_SEAT_CAPABILITY_KEYBOARD)
+    (wlroots.wlr_seat_set_keyboard seat input)
+    (wlroots.wlr_seat_set_capabilities seat ffi.C.WL_SEAT_CAPABILITY_KEYBOARD)
 
-    ;; XXX need to fix this for multiple keyboards
     {:keyboard
      {:wlr-keyboard k}}))
 
-(lambda new-pointer [input state]
-  {:pointer :tba})
+(lambda new-pointer [seat input state]
+  (let [p input.pointer]
+    ;(wlroots.wlr_cursor_attach_input_device seat.cursor.wlr_cursor input)
+    {:pointer :tba}))
 
 (local input-ctors
        {
@@ -386,6 +385,9 @@
         })
 
 (listen :new-input
+        ;; the backend tells us what the connected input devices
+        ;; are, but the choice of which seat to attach which device to
+        ;; is ours as the compositor.  For the moment we have only one seat
         (lambda [state input]
           (let [i {:name (ffi.string input.name)
                    :vendor input.vendor
@@ -398,7 +400,7 @@
                          " of type " input.type)
                   {})
                 {[:inputs (ffi.string input.name)]
-                 (merge i (ctor input state))}))))
+                 (merge i (ctor state.seats.hotseat input state))}))))
 
 (listen :new-surface
         (lambda [state surface]

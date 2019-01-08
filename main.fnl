@@ -187,7 +187,8 @@
   (let [fns (. handlers name)]
     (when fns
       (each [_ f (ipairs fns)]
-        (let [new-paths (f app-state (unpack [...]))]
+        (let [effects (f app-state (unpack [...]))
+              new-paths (or effects.state {})]
           ;; again, this happens to be destructive but the caller
           ;; should not depend on it
           (set app-state
@@ -195,9 +196,11 @@
                          (assoc-in m path (. new-paths path)))
                        app-state
                        new-paths))
-          (pp app-state)
+          ;; (pp app-state)
           app-state
           )))))
+
+
 
 
 (lambda new-backend [display]
@@ -268,9 +271,10 @@
             ;; wlroots.wlr_screenshooter_create(display);
             ;;- wlroots.wlr_primary_selection_device_manager_create(display);
             (wlroots.wlr_idle_create d)
-            {[:xdg-shell] (new-xdg-shell d)
-             [:seats :hotseat]
-             {:wlr-seat (wlroots.wlr_seat_create d "hotseat")}})))
+            {:state
+             {[:xdg-shell] (new-xdg-shell d)
+              [:seats :hotseat]
+              {:wlr-seat (wlroots.wlr_seat_create d "hotseat")}}})))
 
 (global colors
         {:red (ffi.new "float[4]", [1.0 0.0 0.0 1.0])
@@ -323,8 +327,9 @@
                  output.events.frame
                  (lambda [_ _] (render-frame output)))]
             (wlroots.wlr_output_create_global output)
-            {[:outputs (ffi-address output)]
-             {:wl-output output :frame-listener l}})))
+            {:state
+             {[:outputs (ffi-address output)]
+              {:wl-output output :frame-listener l}}})))
 
 (lambda set-default-keymap [keyboard]
   (let [rules (ffi.new "struct xkb_rule_names" {})
@@ -401,8 +406,9 @@
                   (print "no support for input device " i.name
                          " of type " input.type)
                   {})
-                {[:inputs (ffi.string input.name)]
-                 (merge i (ctor state.seats.hotseat input state))}))))
+                {:state
+                 {[:inputs (ffi.string input.name)]
+                  (merge i (ctor state.seats.hotseat input state))}}))))
 
 (listen :new-surface
         (lambda [state surface]
@@ -414,7 +420,7 @@
                    ;; where to put it) until it's mapped.
                    :x nil
                    :y nil}]
-            {[:surfaces (ffi-address surface)] s})))
+            {:state {[:surfaces (ffi-address surface)] s}})))
 
 (listen :map-shell
         (lambda [state wl-surface]
@@ -431,11 +437,12 @@
              keyboard.keycodes
              keyboard.num_keycodes
              keyboard.modifiers)
-            {[:surfaces id] (assoc shell-surface
-                                   :rotation (- (/ (math.random) 10.0) 0.05)
-                                   :x (math.random 200)
-                                   :y (math.random 100))})))
-            
+            {:state
+             {[:surfaces id] (assoc shell-surface
+                                    :rotation (- (/ (math.random) 10.0) 0.05)
+                                    :x (math.random 200)
+                                    :y (math.random 100))}})))
+        
 (set app-state (initial-state))
 (dispatch :light-blue-touchpaper {})
 (wlroots.wlr_backend_start app-state.backend)

@@ -182,26 +182,27 @@
 
 (var app-state {})
 
+(var effect-handlers
+     {
+      :state
+      (lambda [new-paths]
+        ;; again, this happens to be destructive but the caller
+        ;; should not depend on it
+        (set app-state
+             (reduce (lambda [m path]
+                       (assoc-in m path (. new-paths path)))
+                     app-state
+                     new-paths)))
+      })
+
 (lambda dispatch [name ...]
   (print "dispatch " name)
   (let [fns (. handlers name)]
     (when fns
       (each [_ f (ipairs fns)]
-        (let [effects (f app-state (unpack [...]))
-              new-paths (or effects.state {})]
-          ;; again, this happens to be destructive but the caller
-          ;; should not depend on it
-          (set app-state
-               (reduce (lambda [m path]
-                         (assoc-in m path (. new-paths path)))
-                       app-state
-                       new-paths))
-          ;; (pp app-state)
-          app-state
-          )))))
-
-
-
+        (let [effects (f app-state (unpack [...]))]
+          (each [name value (pairs effects)]
+            ((. effect-handlers name) value)))))))
 
 (lambda new-backend [display]
   (let [be (wlroots.wlr_backend_autocreate display nil)]

@@ -182,6 +182,32 @@
 
 (var app-state {})
 
+(var seats {
+            :hotseat {}
+            })
+
+(lambda seat-effect-handler [[command seat-name input-name attributes]]
+  (let [seat (. seats seat-name)]
+    (if (= command :attach)
+        (set seats (assoc-in seats [seat-name :inputs input-name] attributes))
+        (= command :detach)
+        (print "detach " attributes)
+        (= command :create)
+        (set seats (assoc-in seats [seat-name :wlr-seat]
+                             (wlroots.wlr_seat_create
+                              input-name seat-name)))
+        (error ["unrecognised command"  command]))
+    (pp seats)
+    (let [inputs (or seat.inputs [])
+          keyboard? (any (fn [name attrs] attrs.keyboard) inputs)
+          pointer? (any (fn [name attrs] attrs.pointer) inputs)
+          caps 
+          (+ (if keyboard? ffi.C.WL_SEAT_CAPABILITY_KEYBOARD 0)
+             (if pointer? ffi.C.WL_SEAT_CAPABILITY_POINTER 0)
+             )]
+      (wlroots.wlr_seat_set_capabilities seat.wlr-seat caps))
+    ))
+
 (var effect-handlers
      {
       :state
@@ -193,6 +219,7 @@
                        (assoc-in m path (. new-paths path)))
                      app-state
                      new-paths)))
+      :seat seat-effect-handler
       })
 
 (lambda dispatch [name ...]
@@ -202,7 +229,10 @@
       (each [_ f (ipairs fns)]
         (let [effects (f app-state (unpack [...]))]
           (each [name value (pairs effects)]
-            ((. effect-handlers name) value)))))))
+            (let [h (. effect-handlers name)]
+              (if h
+                  (h value)
+                  (error (.. "no effect handler for " name))))))))))
 
 (lambda new-backend [display]
   (let [be (wlroots.wlr_backend_autocreate display nil)]
@@ -274,8 +304,10 @@
             (wlroots.wlr_idle_create d)
             {:state
              {[:xdg-shell] (new-xdg-shell d)
-              [:seats :hotseat]
-              {:wlr-seat (wlroots.wlr_seat_create d "hotseat")}}})))
+              }
+             :seat
+             [:create :hotseat d nil] })))
+
 
 (global colors
         {:red (ffi.new "float[4]", [1.0 0.0 0.0 1.0])
@@ -375,9 +407,6 @@
                  (ffi.cast "struct wlr_event_keyboard_key *" d))))
 
     (wlroots.wlr_seat_set_keyboard seat.wlr-seat input)
-    (wlroots.wlr_seat_set_capabilities
-     seat.wlr-seat ffi.C.WL_SEAT_CAPABILITY_KEYBOARD)
-
     {:keyboard
      {:wlr-keyboard k}}))
 
@@ -407,9 +436,13 @@
                   (print "no support for input device " i.name
                          " of type " input.type)
                   {})
-                {:state
-                 {[:inputs (ffi.string input.name)]
-                  (merge i (ctor state.seats.hotseat input state))}}))))
+                
+                {:seat
+                 [:attach
+                  :hotseat
+                  (ffi.string input.name)
+                  (merge i (ctor seats.hotseat input state))
+                  ]}))))
 
 (listen :new-surface
         (lambda [state surface]
@@ -427,17 +460,27 @@
         (lambda [state wl-surface]
           (let [id  (ffi-address wl-surface)
                 shell-surface (. state.surfaces id)
-                kbd-device (first (filter (fn [k v] v.keyboard) state.inputs))
-                keyboard (and kbd-device
-                              (. state.inputs kbd-device :keyboard :wlr-keyboard))
+                seat seats.hotseat
+;                kbd-device (first (filter (fn [k v] v.keyboard) seat.inputs))
+;                keyboard (and kbd-device
+;                              (. seat.inputs kbd-device :keyboard :wlr-keyboard))
                 ]
+            ;; I *think* this function is expecting to get an array of
+            ;; currently-pressed keys, not something about available
+            ;; keys. So probably we don't need access to the keyboard
+            ;; as such here, but should to talk to the gesture
+            ;; recogniser such that any ongoing gesture involving held
+            ;; keys is cancelled and the key state is sent to the
+            ;; client instead.  For now we'll pretend nothing is ever
+            ;; being typed at the moment the new window pops up
             (print "map " wl-surface)
             (wlroots.wlr_seat_keyboard_notify_enter
-             state.seats.hotseat.wlr-seat
+             seat.wlr-seat
              wl-surface
-             keyboard.keycodes
-             keyboard.num_keycodes
-             keyboard.modifiers)
+             nil ; keyboard.keycodes       
+             0 ; keyboard.num_keycodes
+             nil ; keyboard.modifiers
+             )
             {:state
              {[:surfaces id] (assoc shell-surface
                                     :rotation (- (/ (math.random) 10.0) 0.05)

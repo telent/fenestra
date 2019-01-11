@@ -9,7 +9,7 @@ will stop being the case some time soon.
 
 ![Screenshot](https://files.mastodon.social/media_attachments/files/009/688/595/original/c93cbe0521f4407c.png)
 
-## Architecture
+# Architecture
 
 This is tentative and exploratory and we're going to have to find out
 how well it fits, but we're shooting for something FRP-ish a la
@@ -48,9 +48,78 @@ re-frame.
   to decide what surfaces to render and where, and at what jaunty
   angles.
 
-## See also
+# See also
 
 * https://fennel-lang.org/    - the language
 * https://github.com/Day8/re-frame#it-is-a-6-domino-cascade - architectural inspiration
 * https://github.com/swaywm/wlroots/ - lowlevel wayland heavy lifting
 * https://ww.telent.net/2018/12/18/moon_on_a_stick - first of probably some number of blog entries on the subject, by me
+
+----
+
+# Pay no attention to the meandering behind this line
+
+Some notes about likely or possible changes to direction that aren't
+concrete enought to get written up yet.  For my benefit not yours
+
+## Sat Jan  5 23:58:14 GMT 2019
+
+
+* new-input needs to know which seat the device is part of
+
+* (following from previous point) maybe event handlers should be
+  passed state as *first* arg, then `dispatch` can pass through as
+  many args as necessary.
+
+## Mon Jan  7 15:40:34 GMT 2019
+
+Did both of those (well, not exactly.  It is for us to *decide* which
+seat to associate a new input with, but now we make the new-input
+listener choose), and now having Feels about the return type of
+`listen` and effect handlers.
+
+Context: I would like some code that updates seat capabilities when
+the input devices are plugged/unplugged.
+
+Thing is, if input devices are not part of the app state (there's a
+pretty good argument they shouldn't be, I think: they're updated by
+the outside world, not by compositor policy) then it needs to maintain
+(or have maintained for it) the collection of connected devices.  I
+suppose it could just close over a private var.
+
+Also thing I've been thinking about that I'm not sure how it fits in:
+gesture recognition.  Need a reasonably clean way to recognise
+gestures that may extend over time, and to allow the view to query
+"in-progress" gestures so that it may e.g. render drag handles.
+
+Perhaps these are both part of the same thing, given that gestures are
+recognised by consuming input events.  Perhaps the gesture handler is
+hooked up to the inputs and emits events when gestures are predicted/final
+
+## Mon Jan  7 23:40:53 GMT 2019
+
+proposal:
+
+- existing listeners have to return {:state ...foo...} where currently
+ they return bare foo
+- the key in this map names an effect handler
+- update-in app-state becomes the first effect handler
+- input device plug/unplug goes through the same event handler logic, but
+  the handlers return {:seat ...bar...}
+- the :seat effect handler does all input device bookkeeping, and also
+  gesture recognition (feeds back into events)
+- some convention for in-progress vs completed gesture events
+- when the same series of input events can be identified as potentially
+  several different gestures ("is this going to be a tap or a drag? don't know
+  yet") - something or other, don't know, but having this all dealt with in
+  a single place will make it easier to see when we have a conflict
+
+## Tue Jan  8 22:36:25 GMT 2019
+
+- display is a global singleton
+- input-devices and outputs are the only foreign objects that come and go dynamically
+
+outputs need to be represented in state so that we can decide what to
+render on each
+
+inputs are their own effect handler

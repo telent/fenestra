@@ -123,3 +123,44 @@ outputs need to be represented in state so that we can decide what to
 render on each
 
 inputs are their own effect handler
+
+## Sun Jan 13 00:27:19 GMT 2019
+
+I am not convinced that this `shell` effect handler operating in
+parallel and in isolation is the right thing, thinking that instead we
+should have everything back into the one `state` table, and that
+imperative code dealing with pointers, keyboards etc should do it by
+defining views on that state such that they get triggered when bits of
+state of interest to them are changed.  *Also*, though, try to keep native
+structs out of the state as far as possible: domain event handlers
+unpack the relevant fields in native structs and pass lua objects
+to app event handlers
+
+What does this mean?
+
+- for example, the cursor should have wlr_cursor_attach_input_device
+called every time there is a change in the available pointer devices
+for the seat.
+
+- we will need a place or places at the end of the data flow pipeline
+which stores state pertinent to the outside world.  The analogous
+thing in react/re-frame is whatever thing holds the previous/current
+DOM representation so that we can compare changes against it and know
+what needs updating
+
+  - window positions, output placements
+  - attached devices, per-seat
+
+  in most respects these functions look like views, excepting their
+  need for local state storage
+
+  sometimes maybe they can just use a weak table to store native
+  values indexed by the corresponding lua value.  e.g. keyboard=>wlr_keyboard, 
+
+
+- not sure where to put the record of historic input events that gesture recognition will need.
+  - inside input event handlers, somehow?
+  - add a queue in the state, and then the recogniser is a view on this queue
+  - add instanteous key/pointer/modifier values in the state, and then the recogniser is a view-with-local-state which updates a private queue containing historic input events whenever device state changes.
+
+- I will not be surprised if we need to add lazy evaluation of the view functions sooner rather later

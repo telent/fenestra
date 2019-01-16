@@ -122,7 +122,7 @@ proposal:
 outputs need to be represented in state so that we can decide what to
 render on each
 
-inputs are their own effect handler
+Inputs are their own effect handler
 
 ## Sun Jan 13 00:27:19 GMT 2019
 
@@ -164,3 +164,102 @@ what needs updating
   - add instanteous key/pointer/modifier values in the state, and then the recogniser is a view-with-local-state which updates a private queue containing historic input events whenever device state changes.
 
 - I will not be surprised if we need to add lazy evaluation of the view functions sooner rather later
+
+## Sun Jan 13 23:49:55 GMT 2019
+
+As an aside: if we went with a more CSP-y approach, each node in the
+dataflow graph would loop forever sucking new inputs, and could close
+over any local state it likes. Currently I think I would like to avoid
+doing that, because it means opaque local state in each node which
+cannot possible make it easier to reason about what the node will do
+for any given input.
+
+Perhaps there could be a convention that nodes return a post-execution
+state as well as their output value, and whatever it is that runs each
+node could be tasked with remembering to call it with that state when
+it next runs
+
+## Mon Jan 14 23:45:07 GMT 2019
+
+For example we could have something like
+
+(defnode keyboard-focus [seat]
+  (:subscribes surfaces)
+  (first (filter (fn [k s] s.focused?) surfaces)))
+  
+which expands to something like
+
+(tset nodes
+      :keyboard-focus
+      (fn [previous-local-state seat]
+        (let [surfaces# (pull-node-value :surfaces)]
+  	  (values previous-local-state ; no state changed
+	  	  (first (filter (fn [k s] s.focused?) surfaces#))))))
+
+(assuming we can figure out how to do macros with gensyms in fennel)
+
+I haven't figured out how to have lots of nodes that combine to
+contribute to the same intermediate value.  For example, there are
+several events (create, map, unmap, destroy ...) on surfaces that
+should all write into the same surfaces value.  There would need to be
+some kind of `alts` construct to say that we accept values from n
+different places
+
+;; handle a new surface
+(fn [prev-state attrs]
+  (plet [new-surface# (pull-node-value :new-surface-event)
+         dead-surface# (pull-node-value :destroy-surface-event)]
+    ;; is this return value or next state?  both, probably
+    (merge (dissoc attrs dead-surface#) new-surface#)))
+  
+## Tue Jan 15 12:13:15 GMT 2019
+
+What if the local state *is* the output value?  Nodes have sight of
+the values of their subscriptions, and their own previous output value,
+and calculate a new output value based on that.
+
+do we even still need "app event handlers"?  Platform event handlers
+can set values as their actions.
+
+still need to figure out updates
+
+- the repaint runs every 50Hz with whatever values are in the graph at
+  that time
+
+- but the gesture handler needs to run whenever its upstreams change state,
+  and only when they change state
+
+=> The gesture handler is part of the dataflow network
+   The repaint is external to it, but somehow has sight of the current
+    value of the scene graph
+
+
+In the interests of staying functional, can we decree/recommend that
+it is not permitted to run imperative code in an interior node?
+Either we have a convention that only sink nodes may do side-effects,
+or we have some protocol for attaching effect handlers to sink nodes
+such that they get run when the sink node value changes.
+
+
+nodes = {
+  name: {
+    fn: function,
+    inputs: [ other names, ... ], 
+    value: {},
+    version: 0
+  }
+}
+
+
+* when the value is called for, check the versions of our inputs: if 
+any is larger than the version of this node, we need to recompute this node
+
+* when the value changes (by computation or by input event), set the
+version to max(versions of inputs) if there are any; (inc version) if not.
+
+* BUT: this lazy update doesn't help for signals that originate in
+  external events, and I cannot see how to avoid pushing changes all
+  the way through from input event to gesture recogniser.  otherwise
+  what happens if multiple events happen on an input (button pressed
+  then released) too quickly for it to be called
+

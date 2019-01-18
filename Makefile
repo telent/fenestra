@@ -1,5 +1,5 @@
 
-FENNEL_SRCS=main.fnl
+FENNEL_SRCS=prelude.fnl main.fnl
 LUA_SRCS=$(patsubst %.fnl,%.fnl.lua,$(FENNEL_SRCS))
 PROTOCOLS=$(shell pkg-config wayland-protocols --variable=datarootdir)
 

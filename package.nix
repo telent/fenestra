@@ -43,7 +43,7 @@ in stdenv.mkDerivation {
   version = "0.0.1";
   src = ./.;
   FENNEL = "${fennel}/fennel";
-  LUA_PATH = "${fennel}/?.fnl.lua;${fennel}/?.lua;${ffi_reflect}/?.lua;${luafun}/?.lua;;";
+  LUA_PATH = "${fennel}/?.fnl.lua;${fennel}/?.lua;${ffi_reflect}/?.lua;${luafun}/?.lua;./?.fnl.lua;./?.lua;;";
   LUA_CPATH = "${wayland}/lib/lib?.so;${libxkbcommon}/lib/lib?.so;${wlroots}/lib/lib?.so;;";
 
   WLROOTS = "${wlroots}";

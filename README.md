@@ -263,3 +263,60 @@ version to max(versions of inputs) if there are any; (inc version) if not.
   what happens if multiple events happen on an input (button pressed
   then released) too quickly for it to be called
 
+## Thu Jan 17 07:09:07 GMT 2019
+
+proposal: we do push-based updates but only through the parts of the
+graph that are required by sinks that have effect handlers attached.
+we have to push through updates at least as far as the nodes that record
+them and accumulate historical state
+
+define the graph
+define the sources and how they're updated (by events)
+sort the graph
+(optimization) figure out which bits of the graph to update
+figure out how to actually run the code.
+
+
+(we might say that each node is updated by a process akin to a
+`reduce`: the function accepts the current value and the values of its
+antecedents, and returns an updated value.  This is true, but is it
+useful? Dunno)
+
+## Fri Jan 18 22:58:51 GMT 2019
+
+In fennel 0.2.0 we have kv destructuring, so I imagine something like
+
+{:focused-surface {
+  :inputs [:pointer-position :thingy]
+  :fn (fn [value {:pointer-position pos :thingy thingy}]
+        (let [s (find-surface-for-at-x-y pos.x pos.y)]
+	  (assoc value :surface s)))
+}}
+
+which is to say, a node recalculation function is invoked with the
+previous value and a table consisting of values of all its declared inputs
+
+(fn evaluate-node [graph label]
+  (let [node (. graph label)
+        {:value value :inputs inputs :fn fn :v version} node
+        input-table (filter (fn [label node] (member? label inputs))
+		            graph)
+	new-value ((fn node) value (map (fn [x] x.value) input-table))]
+    (if (= value new-value)
+        node
+        (assoc node
+               :value new-value
+   	       :version (max (inc v) (map (fn [_ x] x.version) input-table))))))
+
+this function makes no kind of check that its inputs are up to date,
+so it's important to run the fucntions for each node in the right
+(topo-sorted) order
+
+Also, I think the logic for version is wrong.
+
+Also also, still need:
+
+* a syntax/function/convention for updating values of source nodes
+  (in response to events, most lkely)
+* something to subscribe to the value from a sink node.
+

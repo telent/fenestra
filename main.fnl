@@ -55,37 +55,6 @@
 
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; we are going to do a "flowing data" architecture, loosely inspired
-;;; by re-frame
-
-;;; There is application state.  It is acted on by an effect handler
-;;; which is told what to do by effects, which are data items conputed
-;;; by event handlers.  Event handlers run when something dispatches
-;;; the events they're registered to handle. "Something" is probably a
-;;; callback registered with/by the platform code (i.e. wlroots or wayland)
-
-;;; Every frame, the scene is rendered by looking at the application state
-;;; to see which surfaces it needs to draw
-
-;;; re-frame concepts that I might not yet need
-;;; - effect handlers for any effect other than "change app state",
-;;;   will add these when they torun out to be relevant
-;;; - view functions: right now, the frame renderer will look at app state
-;;;   directly
-
-;;; other things I have not addressed in this design
-;;; - recognising "commands" from low-level input events (e.g. where should
-;;;   we put code to recognise that the user is doing a horizontal drag and
-;;;   wants[*] to maximise the window
-
-;;; [*] for the record, personally I hate this behaviour and do not
-;;; want it on my computer.  But KDE is an existence proof that (more
-;;; than zero) other people do like it, and fenestra should be able to
-;;; encode it (and other less awful but equally complex gestures
-;;; involving state machines) in a non-hacky way
-
                                             
 (var handlers {})
 

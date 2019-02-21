@@ -320,3 +320,155 @@ Also also, still need:
   (in response to events, most lkely)
 * something to subscribe to the value from a sink node.
 
+## Sat Jan 19 23:17:44 GMT 2019
+
+Applying some rigour to how source nodes get set
+
+- If the node has no inputs in the graph, and it is not a constant,
+  its value must be updated by some kind of command from outside the
+  graph
+
+- The node is responsible for defining the valid commands and their
+  effect on the node value
+
+- where multiple nodes are interested in accepting commands for the
+  same external event, does the event handler need to know what they
+  all are?  Would we be better modelling this as an event subscripton
+  (wich can be 1:n) instead of requiring the event handler to know
+  about all the nodes that need updating?
+
+
+## Tue Jan 22 22:10:59 GMT 2019
+
+Am wondering if we could have events passed through the graph instead
+of being swallowed by input nodes.
+
+Under this model: a node has
+
+- some message sources it subscribes to
+- a state (stored externally, for visibility, but for this node's exclusive use)
+- some downstreams it pushes new messages to
+
+on receipt of an input message it may
+- update its state
+- send further messages to its subscribers
+- reconfigure the graph, by adding/deleting subscriptions (or subscribers?)
+
+Should note that this is the same structure and set of operations as
+giraphe and pregel permit, although they are distributed and
+facebook-scale and all that stuff, and we are clearly not.
+
+ https://web.mit.edu/6.976/www/handout/valiant2.pdf is the paper that
+ everyone cites.
+
+ https://www.researchgate.net/publication/279189639_Towards_Distributed_Processing_on_Event-sourced_Graphs looks relevant also, may or may not be influential
+
+on new input: get details, determine seat, add to that seat's relevant
+composite input channel
+
+on new output: get details, add output scene graph, maybe move
+some windows over to it? maybe trigger birds-eye view so user can move
+windows themself?
+
+on new surface: determine placement, add to master scene graph, add to
+appropriate output scene graphs, determine whether target of any seat
+focus, arrange for focus
+
+on move or resize surface: determine placement, see which
+output scene graphs it appears on, determine whether target
+of any seat focus, arrange for focus
+
+on key event: determine if should send to surface.  if part of
+compositor gesture, remember.  update master scene graph with any
+speculative or final gestures 
+
+
+nodes that seem to spring from this list
+- master scene graph
+- output scene graph, for each output
+- gesture recogniser, for each seat
+- composite input controllers (pointer, key source, etc) for each seat
+
+consumers of node data: 
+- focusser, for each seat
+- renderer, for each output
+- the thing that adds outputs to a layout
+- the thing that adds input devices to a composite seat input
+- thing to send key events to focused surface?
+
+the renderer is a special case here, it's the only one that needs node
+value (of the output scene graph) and couldn't be written as a message
+handler.  Actually that might not even be true.  Maybe the renderer
+could get messages when the scene graph changes and use that to cue up
+the back buffer for the next vblank - it would just Do Nothing if
+nothing had changed.
+
+Thinking that a node function is invoked with [ old value, message
+received] and returns [ new value, any messages to publish ] - but
+this doesn't permit graph rewiring,  need to find a way to express that.
+Ideally as data, without side-effects
+
+graph reconfig may involve whole subtrees, not just nodes
+
+
+## Mon Jan 28 21:56:54 GMT 2019
+
+It may be a lot simpler if we take graph rewiring out of scope, and
+implement it as an effect.  I haven't written a lot recently about
+effect handlers, but I propose that they are "message sinks" which can
+subscribe to nodes and do side-effects but which do not have
+downstream nodes.
+
+When a node is created it needs to be able to find the nodes it wishes
+to subscribe to.  If there are multiple nodes of the same "type" - for
+example, per-output scene graph nodes - then we need something a bit
+more complicated here than find-by-name
+
+## Wed Jan 30 15:30:07 GMT 2019 
+
+Taking a leaf from REST, maybe: the node should declare its output
+event type (c.f. "media type") and then new nodes can find existing
+nodes by name (if singleton) or by type (if one of a set).  
+
+Maybe we just have "find nodes matching these attributes" where name
+and output-media-type are two of the available attributes
+
+
+what do we need?
+
+(find-nodes attributes)
+(add-node {:attributes {...} :inputs attributes :fn (fn [] ....) :events [] ...})
+(add-effect {:inputs attributes :fn (fn [] ....)})
+(remove-nodes attributes)
+
+must a node attribute set be unique?  otherwise there's no way to
+unambigously identify which it is, except for its actual identity
+
+;; and something to run the nodes
+
+(send-event event node-graph)
+- for each node n1 in the collection N1 that subscribe to the event
+  - invoke n1 with its last known values and the event payload as message
+  - return value is (new-value message): capture the value and store it
+  - for each node n2 in the collection N2 whose input attributes include N1,
+     invoke it with its value and the message returned by n1
+    - repeat until we run out of nodes
+
+where do we keep the node values?  in a table, presumably: can we use
+the node spec as key? or even the node itself?
+
+## Sun Feb  3 23:31:24 GMT 2019
+
+Let's write some code, and just for fun let's write some tests first
+
+Given that I have a graph which counts input events
+When I send it 7 different events
+Then the sink node receives an event whose payload is 7
+
+Thu Feb 14 15:51:00 GMT 2019
+
+`dispatch` finds nodes which subscribe to the specified event, but
+these are (by definition) source nodes: interior nodes are linked with
+:inputs not :events, so we need some other way fo finding downstreams
+
+

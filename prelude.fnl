@@ -1,4 +1,3 @@
-((require "fun"))
 (local fennelview (require "fennelview"))
 
 ;; this happens to be destructive but the caller should not depend on it
@@ -17,8 +16,6 @@
 
 (assert (= 6 (sum (filter (lambda [x] (< x 3)) [1 7 1 9 2 10 2 4]))))
 
-;; these are probably not the fastest way of doing this as I suspect
-;; it does a lot of copying and makes a lot of garbage
 
 (lambda empty? [c] (is_null c))
 
@@ -55,6 +52,9 @@
                {:expected expected
                 :actual actual}))))
 
+;; these are probably not the fastest way of doing this as I suspect
+;; it does a lot of copying and makes a lot of garbage
+
 (fn assoc [tbl k v ...]
   (tset tbl k v)
   (if ...
@@ -82,22 +82,30 @@
 
 (assert-equal {:horse {:zebra 9} }
               (assoc-in {} [:horse :zebra] 9))
-
 (assert-equal {:horse {:zebra 9} }
               (assoc-in {:horse {:zebra 11}} [:horse :zebra] 9))
 
 (assert-equal {:k {:l 2 :z 9} }
               (assoc-in {:k {:z 9}} [:k :l] 2))
 
-(local fennel (require :fennel))
-{
- :assoc assoc
- (fennel.mangle :assoc-in) assoc-in
- :conj conj
- :dec dec
- :empty? empty
- :equal? equal
- :inc inc
- :keys keys
- :merge merge
- }
+(local exports {
+                :assoc assoc
+                :assoc_in assoc-in
+                :conj conj
+                :dec dec
+                :empty? empty?
+                :equal? equal?
+                :inc inc
+                :keys keys
+                :merge merge
+                
+                :assert_equal assert-equal
+                })
+
+(setmetatable exports
+              {
+               "__call" (fn [t] (reduce (fn [m k v] (rawset _G k v) _G)
+                                        {}
+                                        t)
+                          )})
+exports

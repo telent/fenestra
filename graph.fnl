@@ -83,6 +83,7 @@
     (dispatch graph :count)
     (dispatch graph :count)
     (dispatch graph :count)
-    (p.assert_equal 5 outval.fred)))
+    (assert-equal 5 outval.fred)))
   
 (test-counter)
+

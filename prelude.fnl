@@ -1,4 +1,5 @@
 (local fennelview (require "fennelview"))
+(local fennel (require "fennel"))
 
 ;; this happens to be destructive but the caller should not depend on it
 (lambda merge [old-value new-value]
@@ -15,7 +16,6 @@
 (lambda dec [x] (- x 1))
 
 (assert (= 6 (sum (filter (lambda [x] (< x 3)) [1 7 1 9 2 10 2 4]))))
-
 
 (lambda empty? [c] (is_null c))
 
@@ -90,7 +90,7 @@
 
 (local exports {
                 :assoc assoc
-                :assoc_in assoc-in
+                :assoc-in assoc-in
                 :conj conj
                 :dec dec
                 :empty? empty?
@@ -98,13 +98,16 @@
                 :inc inc
                 :keys keys
                 :merge merge
-                
-                :assert_equal assert-equal
+                :assert-equal assert-equal
                 })
 
 (setmetatable exports
               {
-               "__call" (fn [t] (reduce (fn [m k v] (rawset _G k v) _G)
+               "__call" (fn [t] (reduce (fn [m k v]
+                                          (print k)
+                                          (rawset _G k v) 
+                                          (rawset _G (fennel.mangle k) v)
+                                          _G)
                                         {}
                                         t)
                           )})

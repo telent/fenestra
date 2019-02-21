@@ -55,6 +55,7 @@ in stdenv.mkDerivation {
     mesa_noglu
     pixman
     pkgconfig
+    rlwrap
     wayland
     wayland-protocols
     wlroots
